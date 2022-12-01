@@ -5,8 +5,10 @@ import time
 import asyncio
 import event_listener
 import random
+from dotenv import load_dotenv
 
 
+load_dotenv()
 
 #import infura
 #from dotenv import load_dotenv
@@ -55,8 +57,8 @@ abi = json.loads(compiled_sol["contracts"]["transaction.sol"]["Wager"]["metadata
 ###################### SMART CONTRACT CONNECTION CONFIG ############################
 #web3 lib Python script
 # MAINNET INFURA URL infura_url ="https://mainnet.infura.io/v3/af8778766a394b079160d1067fae3524"
-infura_url= 'https://rinkeby.infura.io/v3/ad4ce9db8f4b404eada5374769188bae'  # RINKBY INFURA URL
-chain_id = 4
+infura_url= 'https://goerli.infura.io/v3/ad4ce9db8f4b404eada5374769188bae'  # GOERLI INFURA URL
+chain_id = 5
 my_address = '0xe5b957c7acC4d94006c75E3B5d6C07953B97b277'
 PRIVATE_KEY= os.getenv('PRIVATE_KEY')
 web3 = Web3(Web3.HTTPProvider(infura_url))
@@ -138,7 +140,7 @@ def updateBalance(ethAddy,value,operation):
             }
         )
         signed_greeting_txn = web3.eth.account.sign_transaction(
-            transaction, private_key=private_key
+            transaction, private_key=PRIVATE_KEY
         )
         tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
         tx_receipt = web3.eth.wait_for_transaction_receipt(tx_greeting_hash)
@@ -161,7 +163,7 @@ def updateBalance(ethAddy,value,operation):
             }
         )
         signed_greeting_txn = web3.eth.account.sign_transaction(
-            transaction, private_key=private_key
+            transaction, private_key=PRIVATE_KEY
         )
         tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
         tx_receipt = web3.eth.wait_for_transaction_receipt(tx_greeting_hash)
@@ -180,7 +182,7 @@ def setRank(ethAddy,elo):
         }
     )
     signed_greeting_txn = web3.eth.account.sign_transaction(
-        transaction, private_key=private_key
+        transaction, private_key=PRIVATE_KEY
     )
     tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
     tx_receipt = web3.eth.wait_for_transaction_receipt(tx_greeting_hash)
@@ -199,7 +201,7 @@ def addUser(ethAddy):
     )
     print(transaction)
     signed_greeting_txn = web3.eth.account.sign_transaction(
-        transaction, private_key=private_key
+        transaction, private_key=PRIVATE_KEY
     )
     print(signed_greeting_txn)
     tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
@@ -222,7 +224,7 @@ def initializeWithdraw(ethAddy, withdrawAmount):
         }
     )
     signed_greeting_txn = web3.eth.account.sign_transaction(
-        transaction, private_key=private_key
+        transaction, private_key=PRIVATE_KEY
     )
     tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
     print("Updating stored Value...")
@@ -311,7 +313,7 @@ def sendTransaction(ether_usd, user_addy, user_balance):
         'gas': 100000 ,
         'gasPrice': web3.eth.gas_price
         }
-    signed_tx = web3.eth.account.signTransaction(tx, private_key)
+    signed_tx = web3.eth.account.signTransaction(tx,PRIVATE_KEY)
     print("signed transaction")
     tx_rawhash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
     print("transaction out")

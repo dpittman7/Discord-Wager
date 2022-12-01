@@ -7,7 +7,9 @@ import asyncio
 import os
 import time
 
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
+
+load_dotenv()
 
 #from pycoingecko import CoinGeckoAPI
 from solcx import compile_standard, install_solc
@@ -56,7 +58,7 @@ abi = json.loads(
 #
 # web3 lib Python script
 # MAINNET INFURA URL infura_url ="https://mainnet.infura.io/v3/af8778766a394b079160d1067fae3524"
-infura_url = "https://rinkeby.infura.io/v3/ad4ce9db8f4b404eada5374769188bae"  # RINKBY INFURA URL
+infura_url = "https://goerli.infura.io/v3/ad4ce9db8f4b404eada5374769188bae"  # Goerli INFURA URL
 w3 = Web3(Web3.HTTPProvider(infura_url))
 #print(web3.isConnected())
 

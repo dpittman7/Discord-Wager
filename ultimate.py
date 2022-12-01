@@ -1,14 +1,15 @@
 import discord
+from discord import app_commands
 import random
 import linecache
 import re
 import shelve
 import copy
 import math
-from random import shuffle, randint
+from random import shuffle, randint  
 from datetime import datetime
+from discord.ui import Button, View
 from discord.ext import commands
-from utilities import datadriver
 import web3_logic
 import functools
 import typing
@@ -16,11 +17,36 @@ import asyncio
 import requests
 import os
 from dotenv import load_dotenv
+from utilities import datadriver
 
 load_dotenv()
+MY_GUILD = discord.Object(id=701644736901021736)
+
+
+
+class MyClient(discord.Client):
+    def __init__(self, *, intents: discord.Intents):
+        super().__init__(intents=intents)
+        # A CommandTree is a special type that holds all the application command
+        # state required to make it work. This is a separate class because it
+        # allows all the extra state to be opt-in.
+        # Whenever you want to work with application commands, your tree is used
+        # to store and work with them.
+        # Note: When using commands.Bot instead of discord.Client, the bot will
+        # maintain its own tree instead.
+        self.tree = app_commands.CommandTree(self)
+    
+    # In this basic example, we just synchronize the app commands to one guild.
+    # Instead of specifying a guild to every command, we copy over our global commands instead.
+    # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
+    async def setup_hook(self):
+        # This copies the global commands over to your guild.
+        self.tree.copy_global_to(guild=MY_GUILD)
+        await self.tree.sync(guild=MY_GUILD)
+
 
 intents = discord.Intents.all()
-client = discord.Client(intents=intents)
+client = MyClient(intents=intents)
 reaction = discord.Reaction
 
 ETHERSCAN_TOKEN= os.getenv('ETHERSCAN_TOKEN')
@@ -33,7 +59,6 @@ FILENAME = os.getenv('FILENAME')
 dataframe = datadriver.loadTable(FILENAME)
 
 @client.event
-
 async def on_ready():
     guild_list = client.guilds #sees all the users that the bot can see.
 
@@ -41,9 +66,9 @@ async def on_ready():
     #active_role = discord.utils.find(lambda m: m.role == 'Active', guild.roles)
     #active_members = active_role.members
 
-    dataframe = datadriver.loadTable(FILENAME)
-    spliceframe = dataframe.iloc[:,[0,5]] #creates dataframe with only USERNAME and RANK as columns. Still row indexed by ID
-    print(spliceframe)
+    #dataframe = datadriver.loadTable(FILENAME)
+    #spliceframe = dataframe.iloc[:,[0,5]] #creates dataframe with only USERNAME and RANK as columns. Still row indexed by ID
+    #print(spliceframe)
 
     
 
@@ -76,6 +101,94 @@ async def on_ready():
 #
 #####################################################################
 
+@client.tree.command()
+async def buttontester(interaction: discord.Interaction, member: discord.Member):
+    print(interaction.expires_at)
+
+    #Build Embed to be sent
+    e = discord.Embed(title = 'Button Debugger')
+    
+    #Build buttons 
+    button_one = Button(label="Button One toggled")
+    button_two = Button(label="Button Two toggled")
+    view = View(timeout = 600)
+    view.add_item(button_one)
+    view.add_item(button_two)
+
+    #Send Initial Response
+    og_response = await interaction.response.send_message(embed=e, view=view)
+    print(og_response)
+    #await og_response.defer()
+
+    print("indicatior 1")
+    win_status = [0,0]
+    confirm_status = [0,0]
+
+    async def button_one_callback(interaction):
+        print('interaction received')
+        #assign check confirming button user is correct
+        
+        #if button two has not toggled - initial win
+        if win_status[1] == 0:
+            win_status[0] = 1
+            button_one.disabled = True
+            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
+            await interaction.edit_original_response(embed=e, view=view)
+
+        #if button two is toggled - claiming win
+        if win_status[1] == 1:
+            confirm_status[0] = 1
+            button_one.disabled = True
+            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
+            await interaction.edit_original_response(embed=e, view=view)
+
+    
+    async def button_two_callback(interaction):
+        print('interaction received')
+        #assign check confirming button user is correct
+        
+        #if button one has not toggled - initial win
+        if win_status[0] == 0:
+            win_status[1] = 1
+            button_one.disabled = True
+            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
+            await interaction.edit_original_response(embed=e, view=view)
+
+        #if button two is toggled - claiming win
+        if win_status[0] == 1:
+            confirm_status[1] = 1
+            button_one.disabled = True
+            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
+            await interaction.edit_original_response(embed=e, view=view)
+    
+    async def status_check(interaction, win_status, confirm_status):
+        concluded = 0
+        
+        if win_status[0] == 1 and confirm_status[1] == 1:
+            e.add_field(name='button_one win - end interaction', value=1, inline = False)
+            concluded = 1
+            #await interaction.edit_original_response(embed=e, view=view)
+        
+        if win_status[1] == 1 and confirm_status[0] == 1:
+            e.add_field(name='button_two win - end interaction', value=1, inline = False)
+            concluded = 1
+            #await interaction.edit_original_response(embed=e, view=view)
+        return concluded
+            
+
+
+
+    #Enter incomplete state
+    
+    finished = 0
+    print("in indicatior loop")
+    while(not finished):
+        button_one.callback = button_one_callback
+        button_two.callback = button_two_callback
+        finished = await status_check(interaction,win_status,confirm_status)
+        
+
+
 @client.event    
 async def on_message(message):
 
@@ -93,37 +206,8 @@ async def on_message(message):
         return
     print(*client.guilds) #extract message's guild for expansion
     print(message.content)
-    
-    if message.content.startswith('!challenge'):
-        dataframe = datadriver.loadTable(FILENAME)
-        if(not datadriver.getUserValue(dataframe,message.author.id,'IN_CHALLENGE')):
-            await challenge(client, message, reaction)
-        else:
-            await message.channel.send("Challenge currently in progress")
 
-    if message.content.startswith('!wager'):
-        dataframe = datadriver.loadTable(FILENAME)
-        if(not datadriver.getUserValue(dataframe,message.author.id,'IN_CHALLENGE')):
-            await challenge(client, message, reaction, 1)
-        else:
-            await message.channel.send("Challenge currently in progress")
-
-    if message.content.startswith('!stats'):
-        await stats(message)
-        
-    if message.content.startswith('!login'):
-        await login(client, message)
-    
-    if message.content.startswith('!logout'):
-        await logout(client, message)
-        
-    if message.content.startswith('!rank'):
-        await callRank(message)
-
-    if message.content.startswith('!initialize'):
-        print("Initializing User")
-        await initializeUser(client, message)                                                                                                                                                                                                                                                                         
-
+                                                                                                                                                                                                                                                           
 
 #####################################################################
 # Function:
@@ -226,17 +310,19 @@ async def contractLogger(channel):
 #####################################################################
 
 #lazy code, will need to update it for the bot to be mass launched.
-async def login(client, message):
-    user = message.author
+@client.tree.command()
+async def login(interaction: discord.Interaction):
+    user = interaction.user
 
     #ADD: Check if the user has role "In Match" - Send Error Message and terminate function.
-   
-    
-    role = discord.utils.get(client.guilds[0].roles, name="Active")
-    await user.add_roles(role)
-    
-    role = discord.utils.get(client.guilds[0].roles, name="Inactive")
-    await user.remove_roles(role)
+    if datadriver.getUserValue(user.id, 'IN_CHALLENGE'):
+        interaction.response.send_message("Complete current challenge before changing status.")
+    else:    
+        role = discord.utils.get(client.guilds[0].roles, name="Active")
+        await user.add_roles(role)
+        
+        role = discord.utils.get(client.guilds[0].roles, name="Inactive")
+        await user.remove_roles(role)
 
 
 #####################################################################
@@ -251,18 +337,19 @@ async def login(client, message):
 #####################################################################
 
 #will need to add timeout when launched onto external server    
-async def logout(client, message):
+@client.tree.command()
+async def logout(interaction: discord.Interaction):
+    user = interaction.user
 
     #ADD: Check if the user has role "In Match" - Send Error Message and terminate function.
-
-    user = message.author
-
-    role = discord.utils.get(client.guilds[0].roles, name="Inactive")
-    await user.add_roles(role)
-    
-     
-    role = discord.utils.get(client.guilds[0].roles, name="Active")
-    await user.remove_roles(role)
+    if datadriver.getUserValue(user.id, 'IN_CHALLENGE'):
+        interaction.response.send_message("Complete current challenge before changing status.")
+    else:
+        role = discord.utils.get(client.guilds[0].roles, name="Inactive")
+        await user.add_roles(role)
+        
+        role = discord.utils.get(client.guilds[0].roles, name="Active")
+        await user.remove_roles(role)
 
 #####################################################################
 # Function:
@@ -276,7 +363,7 @@ async def logout(client, message):
 #####################################################################
 def toggleInChallenge(userID, toggle):
     df = datadriver.loadTable(FILENAME)
-    datadriver.updateUserValue(df,userID,'IN_CHALLENGE',toggle)
+    datadriver.updateUserValue(userID,'IN_CHALLENGE',toggle)
     
 
 #####################################################################
@@ -290,11 +377,11 @@ def toggleInChallenge(userID, toggle):
 #
 # Notes:
 #####################################################################   
-           
-async def callRank(message):
-    dataframe = datadriver.loadTable(FILENAME)
-    rank = datadriver.getUserValue(dataframe,message.author.id,'RANK')
-    await message.channel.send('Current Rank: {}'.format(rank))
+@client.tree.command()
+async def getrank(interaction: discord.Interaction):
+    #dataframe = datadriver.loadTable(FILENAME)
+    rank = datadriver.getUserValue(interaction.user.id,'ranking')
+    await interaction.response.send_message('Current Rank: {}'.format(rank))
 
 #####################################################################
 # Function:
@@ -310,21 +397,21 @@ async def callRank(message):
 
 
 
-
-async def callBalance(message):
+@client.tree.command()
+async def getbalance(interaction: discord.Interaction, member: discord.Member):
     dataframe = datadriver.loadTable(FILENAME)
-    addy = datadriver.getUserValue(dataframe,message.author.id,'ETH_ADDY')
+    addy = datadriver.getUserValue(member.id,'ETH_ADDY')
     if web3_logic.isUser(addy):
         balance = web3_logic.getBalance(addy)
-        await message.channel.send('Current Balance: {}'.format(balance))
+        await interaction.response.send_message('Current Balance: {}'.format(balance))
     else:
-        await message.channel.send('Please set addy first.')   
+        await interaction.response.send_message('User is not currently registered in contract.')   
 
 #####################################################################
 # Function:
 # Parameters:
 #
-# Behavior: sets user's ethereum wallet address for web3_logic lookup functions
+# Behavior: HAVE FUNCTION LOCAL TO WEBSITE
 #
 # Returns:
 # Author: Deanta Pittman
@@ -332,37 +419,43 @@ async def callBalance(message):
 # Notes: Implement questioning in user DM's
 #####################################################################  
 
-async def initializeUser(client, message):
-    await message.channel.send('Enter the Ethereum address that will be synced with this server')
-    answer = 0
-    attempts = 0
-    while(not answer):
-        
-        reply = await client.wait_for('message') # Replace waiting for user input and implement set gamecount by react.     
-        if reply.author.id == message.author.id:
-            #Need to add logic to validate user inputted address
-            dataframe = datadriver.loadTable(FILENAME)
-            datadriver.addUser(dataframe,message.author.id,message.author.name,reply.content,FILENAME)
-            web3_logic.addUser(reply.content)
-            await message.channel.send('User added, welcome to the mix {}!'.format(message.author.name))
-            answer = 1
+@client.tree.command()
+async def initializeuser(interaction: discord.Interaction, ethaddress: str, profilepic: discord.Attachment):
+        filename = "{}_pfp".format(interaction.user.id)
+        await profilepic.save("profilepics/{}.png".format(filename))
+        #Need to add logic to validate user inputted address
+        datadriver.addUser(interaction.user.id,interaction.user.name,ethaddress,filename)
+        web3_logic.addUser(ethaddress)
+        await interaction.response.send_message('User added, welcome to the mix {}!'.format(interaction.user.name))
+
         
 #add rank difference to eligible function
-#gamelist[0] - challengerID , gamelist[1] = challengedID
-async def eligible(message, gamelist,wagerValue):
+#gamelist[0] - initiatorID , gamelist[1] = opponentID
+#####################################################################
+# Function:
+# Parameters:
+#
+# Behavior: Internal function
+#
+# Returns:
+# Author: Deanta Pittman
+#
+# Notes: Implement questioning in user DM's
+#####################################################################
+async def eligible(interaction, gamelist,wagerValue):
     eligible = 0
-    dataframe = datadriver.loadTable(FILENAME)
+    #dataframe = datadriver.loadTable(FILENAME)
     try:
-        challengerAddy = datadriver.getUserValue(dataframe,gamelist[0],'ETH_ADDY')
-        challengedAddy = datadriver.getUserValue(dataframe,gamelist[0],'ETH_ADDY')
-        if challengerAddy != "" and challengerAddy != "":
+        initiatorAddy = datadriver.getUserValue(gamelist[0],'ETH_ADDY')
+        opponentAddy = datadriver.getUserValue(gamelist[0],'ETH_ADDY')
+        if initiatorAddy != "" and initiatorAddy != "":
             print("evaluating web3 stats")
-            balance1 = web3_logic.getBalance(challengerAddy)
-            balance2 = web3_logic.getBalance(challengedAddy)
+            balance1 = web3_logic.getBalance(initiatorAddy) 
+            balance2 = web3_logic.getBalance(opponentAddy)
             print(" User Balances - {0} | {1}".format(balance1,balance2))
 
-            rank1 = web3_logic.getRank(challengerAddy)
-            rank2 = web3_logic.getRank(challengedAddy)
+            rank1 = web3_logic.getRank(initiatorAddy)
+            rank2 = web3_logic.getRank(opponentAddy)
             rankDifference = abs(rank1-rank2)
             print(" User Rank - {0} | {1} | diff - {2}".format(rank1,rank2,rankDifference))
          
@@ -378,29 +471,27 @@ async def eligible(message, gamelist,wagerValue):
     return eligible
 
 
-async def selectWager(message,gamelist):
+async def selectWager(interaction,gamelist, initiatorData, opponentData):
     
 
     r = requests.get('https://api.etherscan.io/api?module=stats&action=ethprice&apikey={}'.format(ETHERSCAN_TOKEN))
     ethprice = float(r.json()["result"]["ethusd"])
     print(ethprice)
-    challengerUser = message.author.name
-    challengedUser = message.mentions[0].name
     e = discord.Embed(title = 'Select Wager Amount', color=discord.Color.yellow())
     e.add_field(name='.001 Ether', value='~ {} USD'.format(ethprice*.001), inline = True)
     e.add_field(name='.003 Ether', value='~ {} USD'.format(ethprice*.003), inline = True)
     e.add_field(name='.005 Ether', value='~ {} USD'.format(ethprice*.005), inline = True)
-    e.add_field(name='{} Selection'.format(challengerUser), value='X', inline = False)
-    e.add_field(name='{} Selection'.format(challengedUser), value='X', inline = False)
+    e.add_field(name='{} Selection'.format(initiatorData[0]), value='X', inline = False)
+    e.add_field(name='{} Selection'.format(opponentData[0]), value='X', inline = False)
     e.set_footer(text='React to choose your selection', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
-    activeEmbed = await message.channel.send(embed=e)
+    activeEmbed = await interaction.edit_original_response(embed=e)
 
     await activeEmbed.add_reaction(str('1️⃣')) #unicode for 100 points
     await activeEmbed.add_reaction(str('3️⃣')) #unicode for cross mark
     await activeEmbed.add_reaction(str('5️⃣')) #unicode for cross mark
     value = 0
     selection = 0
-    challengersChoice = -1
+    initiatorsChoice = -1
     oppositionsChoice = -2
 
     while(not selection):
@@ -416,42 +507,42 @@ async def selectWager(message,gamelist):
 
         #Evaluating Challengers Choice 
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('1️⃣'):
-            e.set_field_at(index=3,name='{}'.format(challengerUser),value="1")
+            e.set_field_at(index=3,name='{}'.format(initiatorData[0]),value="1")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 1
+            initiatorsChoice = 1
             
             
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('3️⃣'):
-            e.set_field_at(index=3,name='{}'.format(challengerUser),value="3")
+            e.set_field_at(index=3,name='{}'.format(initiatorData[0]),value="3")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 3
+            initiatorsChoice = 3
 
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('5️⃣'):
-            e.set_field_at(index=3,name='{}'.format(challengerUser),value="5")
+            e.set_field_at(index=3,name='{}'.format(initiatorData[0]),value="5")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 5
+            initiatorsChoice = 5
 
         #Evaluating Opposition Choice 
         if reactorID == gamelist[1] and str(reactEvent[0]) == str('1️⃣'):
-            e.set_field_at(index=4,name='{}'.format(challengedUser),value="1")
+            e.set_field_at(index=4,name='{}'.format(opponentData[0]),value="1")
             activeEmbed = await activeEmbed.edit(embed=e)
             oppositionsChoice = 1
             
             
         if reactorID == gamelist[1] and str(reactEvent[0]) == str('3️⃣'):
-            e.set_field_at(index=4,name='{}'.format(challengedUser),value="3")
+            e.set_field_at(index=4,name='{}'.format(opponentData[0]),value="3")
             activeEmbed = await activeEmbed.edit(embed=e)
             oppositionsChoice = 3
 
         if reactorID == gamelist[1] and str(reactEvent[0]) == str('5️⃣'):
-            e.set_field_at(index=4,name='{}'.format(challengedUser),value="5")
+            e.set_field_at(index=4,name='{}'.format(opponentData[0]),value="5")
             activeEmbed = await activeEmbed.edit(embed=e)
             oppositionsChoice = 5
 
         await asyncio.sleep(1)
-        print('{0} - {1}'.format(challengersChoice,oppositionsChoice))
+        print('{0} - {1}'.format(initiatorsChoice,oppositionsChoice))
 
-        if oppositionsChoice == challengersChoice:
+        if oppositionsChoice == initiatorsChoice:
             e = discord.Embed(title = 'Wager Amount Selected', color=discord.Color.green())
             e.add_field(name='.00{} Ether'.format(oppositionsChoice), value='approx {} USD'.format(ethprice*.001), inline = True)
             e.set_footer(text='The wager will begin shortly.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
@@ -461,10 +552,6 @@ async def selectWager(message,gamelist):
             selection = 1
     
     return value
-
-
-
-
 
 
 #####################################################################
@@ -478,33 +565,53 @@ async def selectWager(message,gamelist):
 # Notes: 
 #####################################################################
 
-async def challenge(client, message, reaction, wager = 0): #mainloop
+@client.tree.command()
+async def challenge(interaction: discord.Interaction, opponent: discord.Member, wager: bool):
+
+    dataframe = datadriver.loadTable(FILENAME)
+    initiator = interaction.user
+    await interaction.response.send_message(f'.')
+    
     #Declarations
-    gamelist = [] #gamelist[0] - challengerID , gamelist[1] = challengedID
-    status_state = [0,0,0,0,0] #game[0] - state. game[1] - gamecount, game[2] - win state, game[3] -challenger_wincount, game[4] - opponent_wincount
+    gamelist = [] #gamelist[0] - initiatorID , gamelist[1] = opponentID
+    status_state = [0,0,0,0,0] #game[0] - state. game[1] - gamecount, game[2] - win state, game[3] -initiator_wincount, game[4] - opponent_wincount
     date = datetime.date #date object to get date of posting the embed
     value = 0
-    gamelist, challengerData, oppositionData = await initialize(client,message)
+    gamelist, initiatorData, oppositionData = await initialize([initiator.id,opponent.id])
+
+    #check if any member is currently in active challenge
+    if(datadriver.getUserValue(opponent.id,'IN_CHALLENGE') or 
+       datadriver.getUserValue(initiator.id,'IN_CHALLENGE')):
+        print(datadriver.getUserRow(opponent.id))
+        print(datadriver.getUserRow(initiator.id))
+        await interaction.edit_original_response(content="complete current challenge")
+        error = await terminate(gamelist)
+        return
+    
+    
     if(wager):
-        value = await selectWager(message,gamelist)
-        if not await eligible(message, gamelist, value):
-            errorMessage = await message.channel.send("A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
+        value = await selectWager(interaction, gamelist, initiatorData, oppositionData)
+        if not await eligible(interaction, gamelist, value):
+            errorMessage = await interaction.edit_original_response(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
             await errorMessage.delete(delay=10.0)
-            status_state[0] = await terminate(gamelist,message)
+            status_state[0] = await terminate(gamelist)
             
     
     print(0)
+    #initiate challenge
+    toggleInChallenge(initiator.id,1)
+    toggleInChallenge(opponent.id,1)
     #print(gamelist[1])
-    if status_state[0] == 0:  status_state, activeEmbed = await confirm(client, message, gamelist, status_state, reaction, wager, value)
+    if status_state[0] == 0:  status_state, activeEmbed = await confirm(client, interaction, gamelist, status_state, reaction, wager, value)
     print(status_state[0])
-    if status_state[0] == 2: await gamecount(client, message, status_state, gamelist, activeEmbed)
+    if status_state[0] == 2: await gamecount(client, interaction, status_state, gamelist, activeEmbed)
     while (status_state[0] == 3 or status_state[0] == 4):
-        if status_state[0] == 3: await inprogress(client,message,gamelist, status_state, wager, value,activeEmbed)
-        if status_state[0] == 4: await postresult(client,message,gamelist, status_state, date, wager, value)
+        if status_state[0] == 3: await inprogress(client,interaction,gamelist, status_state, wager, value,activeEmbed)
+        if status_state[0] == 4: await postresult(client,interaction,gamelist, status_state, date, wager, value)
 
 
     if status_state[0] == -1 :
-        termination_message = await message.channel.send('Challenge Terminated')
+        termination_message = await interaction.edit_original_response(content="Challenge Terminated")
         await termination_message.delete(delay=3)
 
 
@@ -519,19 +626,19 @@ async def challenge(client, message, reaction, wager = 0): #mainloop
 # Notes: 
 #####################################################################
     
-async def confirm(client, message, gamelist, status_state, reaction, wager = 0, value = 0):
+async def confirm(client, interaction, gamelist, status_state, reaction, wager = 0, value = 0):
     #confirm challenge
-    gamelist, challengerStats, oppositionStats = await initialize(client,message)
+    gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
     print('gamelist {}'.format(*gamelist))
     status_state[0] = 1
 
 
-    #Create Embed
+    #Create Embed 
     e = discord.Embed(title = 'Challenge', color=discord.Color.yellow())
-    e.add_field(name='CHALLENGER', value=challengerStats[0], inline = False)
-    e.add_field(name='RANK', value=challengerStats[1], inline = True)
-    e.add_field(name='WINS', value=challengerStats[2], inline = True)
-    e.add_field(name='STREAK', value=challengerStats[3], inline = True)
+    e.add_field(name='CHALLENGER', value=initiatorStats[0], inline = False)
+    e.add_field(name='RANK', value=initiatorStats[1], inline = True)
+    e.add_field(name='WINS', value=initiatorStats[2], inline = True)
+    e.add_field(name='STREAK', value=initiatorStats[3], inline = True)
     e.add_field(name='vs', value=" --- pending --- ", inline = False)
     e.add_field(name='OPPOSITION', value=oppositionStats[0], inline = False)
     e.add_field(name='RANK', value=oppositionStats[1], inline = True)
@@ -542,7 +649,7 @@ async def confirm(client, message, gamelist, status_state, reaction, wager = 0, 
     e.set_footer(text='The Messenger Brings News', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
 
     
-    challengeEmbed = await message.channel.send(embed=e)
+    challengeEmbed = await interaction.edit_original_response(embed=e)
     await challengeEmbed.add_reaction(str('✅')) #unicode for 100 points
     await challengeEmbed.add_reaction(str('⛔')) #unicode for cross mark
     while status_state[0] == 1:
@@ -565,7 +672,7 @@ async def confirm(client, message, gamelist, status_state, reaction, wager = 0, 
             challengeEmbed = await challengeEmbed.edit(embed=e)
             await challengeEmbed.clear_reaction(str('✅')) #unicode for 100 points
             await challengeEmbed.clear_reaction(str('⛔')) #unicode for cross mark
-            #await message.channel.send('The challenger arives, welcome.'.format(gamelist[0]))
+            #await message.channel.send('The initiator arives, welcome.'.format(gamelist[0]))
             status_state[0] = 2
             
         if (reactorID == gamelist[1] or reactorID == gamelist[0]) and str(reactEvent[0]) == str('⛔'):
@@ -578,7 +685,7 @@ async def confirm(client, message, gamelist, status_state, reaction, wager = 0, 
             await challengeEmbed.clear_reaction(str('✅')) #unicode for 100 points
             await challengeEmbed.clear_reaction(str('⛔')) #unicode for cross mark
             #await message.channel.send('Maybe next time')
-            status_state[0] = await terminate(gamelist,message) 
+            status_state[0] = await terminate(gamelist) 
 
     await asyncio.sleep(3)
     return status_state, challengeEmbed    
@@ -595,17 +702,17 @@ async def confirm(client, message, gamelist, status_state, reaction, wager = 0, 
 # Notes: 
 #####################################################################
 
-async def gamecount(client, message, status_state, gamelist, activeEmbed): #strip gamecount.
+async def gamecount(client, interaction, status_state, gamelist, activeEmbed): #strip gamecount.
     #state gamecount
     print(5)
     #print(status_state[0])
-    gamelist, challengerStats, oppositionStats = await initialize(client,message)
+    gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
 
-    challengersChoice = -2
-    oppositionsChoice = -1
+    initiatorsChoice = 855
+    oppositionsChoice = 100
     abort = 0
     e = discord.Embed(title = 'Select GameCount', color=discord.Color.yellow())
-    e.add_field(name='{}'.format(challengerStats[0]), value='X', inline = True)
+    e.add_field(name='{}'.format(initiatorStats[0]), value='X', inline = True)
     e.add_field(name='{}'.format(oppositionStats[0]), value='X', inline = True)
     e.set_footer(text='React to choose your selection', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
     
@@ -630,25 +737,25 @@ async def gamecount(client, message, status_state, gamelist, activeEmbed): #stri
         
         #Evaluating Challengers Choice 
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('1️⃣'):
-            e.set_field_at(index=0,name='{}'.format(challengerStats[0]),value="1")
+            e.set_field_at(index=0,name='{}'.format(initiatorStats[0]),value="1")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 1
+            initiatorsChoice = 1
             
             
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('3️⃣'):
-            e.set_field_at(index=0,name='{}'.format(challengerStats[0]),value="3")
+            e.set_field_at(index=0,name='{}'.format(initiatorStats[0]),value="3")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 3
+            initiatorsChoice = 3
 
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('5️⃣'):
-            e.set_field_at(index=0,name='{}'.format(challengerStats[0]),value="5")
+            e.set_field_at(index=0,name='{}'.format(initiatorStats[0]),value="5")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = 5
+            initiatorsChoice = 5
         
         if reactorID == gamelist[0] and str(reactEvent[0]) == str('❌'):
-            e.set_field_at(index=0,name='{}'.format(challengerStats[0]),value="ABORTED")
+            e.set_field_at(index=0,name='{}'.format(initiatorStats[0]),value="ABORTED")
             activeEmbed = await activeEmbed.edit(embed=e)
-            challengersChoice = -1
+            initiatorsChoice = -1
 
         #Evaluating Opposition Choice 
         if reactorID == gamelist[1] and str(reactEvent[0]) == str('1️⃣'):
@@ -673,22 +780,22 @@ async def gamecount(client, message, status_state, gamelist, activeEmbed): #stri
             oppositionsChoice = -1
 
         await asyncio.sleep(1)
-        print('{0} - {1}'.format(challengersChoice,oppositionsChoice))
+        print('{0} - {1}'.format(initiatorsChoice,oppositionsChoice))
 
-        if oppositionsChoice == -1 or challengersChoice == -1:
+        if oppositionsChoice == -1 or initiatorsChoice == -1:
             abort = 1
             await activeEmbed.delete(delay=7.0)
             status_state[0] = await terminate(gamelist,message)
 
 
 
-        if oppositionsChoice == challengersChoice and not abort:
+        if oppositionsChoice == initiatorsChoice and not abort:
 
             e = discord.Embed(title = 'Challenge:', color=discord.Color.green())
-            e.add_field(name='CHALLENGER', value=challengerStats[0], inline = False)
-            e.add_field(name='RANK', value=challengerStats[1], inline = True)
-            e.add_field(name='WINS', value=challengerStats[2], inline = True)
-            e.add_field(name='STREAK', value=challengerStats[3], inline = True)
+            e.add_field(name='CHALLENGER', value=initiatorStats[0], inline = False)
+            e.add_field(name='RANK', value=initiatorStats[1], inline = True)
+            e.add_field(name='WINS', value=initiatorStats[2], inline = True)
+            e.add_field(name='STREAK', value=initiatorStats[3], inline = True)
             e.add_field(name='vs', value="BEST OF {}".format(oppositionsChoice), inline = False)
             e.add_field(name='OPPOSITION', value=oppositionStats[0], inline = False)
             e.add_field(name='RANK', value=oppositionStats[1], inline = True)
@@ -720,18 +827,19 @@ async def gamecount(client, message, status_state, gamelist, activeEmbed): #stri
 #####################################################################
 
 async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 0, activeEmbed=discord.message):
-    gamelist, challengerStats, oppositionStats = await initialize(client,message)
-    challenger_ID = gamelist[0]
-    challenged_ID = gamelist[1]
-    print(challenger_ID)
-    print(challenged_ID)
+    gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
+    initiator_ID = gamelist[0]
+    opposition_ID = gamelist[1]
+    print(initiator_ID)
+    print(opposition_ID)
     print(status_state)
     
     
-    challenger_name = message.author.name
-    challenged_name = message.mentions[0].name
+    initiator_name = initiatorStats[0]
+    opponent_name = oppositionStats[0]
 
     wontheSet = int(1 + math.floor(int(status_state[2]) / 2))
+
     
     
     #skipcheck = 0 
@@ -750,89 +858,89 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
 
 
             title = 'Game Number ' + str(games) + ':'
-            e = discord.Embed(title = 'Challenge: {0} vs {1}'.format(challengerStats[0],oppositionStats[0]))
+            e = discord.Embed(title = 'Challenge: {0} vs {1}'.format(initiatorStats[0],oppositionStats[0]))
             e.add_field(name= 'Game Number', value=(games + 1), inline=False)
-            e.add_field(name=challenger_name, value = status_state[3], inline = True)
-            e.add_field(name=challenged_name, value = status_state[4], inline = True)
+            e.add_field(name=initiator_name, value = status_state[3], inline = True)
+            e.add_field(name=opponent_name, value = status_state[4], inline = True)
             e.set_footer(text='WINNER SAY win IN CHAT TO CLAIM WIN, opponent either type confirm or deny.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
+
             await activeEmbed.edit(embed = e)
+            
+
+            
+            #response can only be done once
+            
+            game_state = [0,0]
             game_confirm = 0
-            confirm_check = 0
+
+            await activeEmbed.add_reaction(str('1️⃣')) #unicode for 100 points
             
             while game_confirm == 0:
                 
 
-               winconfirm = await client.wait_for('message')
-               
-               if (winconfirm.author.id == challenger_ID or winconfirm.author.id == challenged_ID) and winconfirm.content == 'abort':
-                abort = await abortCheck(winconfirm,gamelist,challengerStats[0],oppositionStats[0]) 
-                
-                
-               #challenger wins match
-               if winconfirm.author.id == challenger_ID and winconfirm.content == 'win':
-                confirmation_requesta = await message.channel.send('challenged, confirm.')
-                
-                while confirm_check == 0 and not abort:
-                    confirmation_submission = await client.wait_for('message')
+                #Process reaction
+                reactEvent = await client.wait_for('reaction_add')
+                reaction = reactEvent[0]
+                print(reaction) #Reaction Object of awaited react event
+                reactorID = reactEvent[1].id # ID of reactor
+                print(reactorID)
+                print(game_state)
 
-
-                    if confirmation_submission.author.id == challenged_ID and confirmation_submission.content == 'confirm':
-                        confirm_check = 1
+                #Initiator reacts
+                if reactorID == initiator_ID and str(reactEvent[0]) == str('1️⃣'):
+                    #Initiator claiming win
+                    if(game_state[0] == 0 and game_state[1] == 0):
+                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="CONFIRM?")
+                        activeEmbed = await activeEmbed.edit(embed=e)
+                        await activeEmbed.clear_reaction(str('1️⃣')) #unicode for 100 points
+                        await activeEmbed.add_reaction(str('👍')) #unicode for cross mark
+                        game_state[0] = 1
+                
+                if reactorID == initiator_ID and str(reactEvent[0]) == str('👍'):
+                    print("confirm check 1")
+                    print(game_state)
+                    #Initiator confirming win
+                    if(game_state[0] == 0 and game_state[1] == 1):
+                        print("initiator confirming win")
+                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="GAME SET!")
+                        activeEmbed = await activeEmbed.edit(embed=e)
                         status_state[3] += 1
-                        await updaterecord(challenger_ID,challenged_ID)
+                        await updaterecord(initiator_ID,opposition_ID)
+                        game_state = [0,0]
+                        await activeEmbed.clear_reaction(str('👍')) #unicode for 100 points
                         game_confirm = 1
-                        await confirmation_submission.add_reaction(str('👍'))
-                        await winconfirm.delete(delay=2.0)
-                        await confirmation_requesta.delete(delay=1.5)
-                        await confirmation_submission.delete(delay=1.0)
 
-                    if confirmation_submission.author.id == challenged_ID and confirmation_submission.content == 'deny':
-                        abort = await abortCheck(winconfirm,gamelist,challengerStats[0],oppositionStats[0])
-                        confirm_check = 1
-                        game_confirm = 1
-                        await confirmation_submission.add_reaction(str('👍'))
-                        await winconfirm.delete(delay=2.0)
-                        await confirmation_requesta.delete(delay=1.5)
-                        await confirmation_submission.delete(delay=1.0)
-                        
-               #challenged wins match         
-               if winconfirm.author.id == challenged_ID and winconfirm.content == 'win' and not abort:
-                confirmation_requestb = await message.channel.send('challenger, confirm.')
-               
-            
-                while confirm_check == 0:
-                    confirmation_submission = await client.wait_for('message')
-
-                    if confirmation_submission.author.id == challenger_ID and confirmation_submission.content == 'confirm':
-                        confirm_check = 1
+                if reactorID == opposition_ID and str(reactEvent[0]) == str('1️⃣'):
+                    #Opposition claiming win
+                    if(game_state[0] == 0 and game_state[1] == 0):
+                        e.set_field_at(index=1,name='{}'.format(initiatorStats[0]),value="CONFIRM?")
+                        activeEmbed = await activeEmbed.edit(embed=e)
+                        game_state[1] = 1
+                
+                if reactorID == opposition_ID and str(reactEvent[0]) == str('👍'):
+                    print("confirm check 2")
+                    print(game_state)
+                    #Initiator confirming win
+                    if(game_state[0] == 1 and game_state[1] == 0):
+                        print("opposition confirming win")
+                        e.set_field_at(index=1,name='{}'.format(oppositionStats[0]),value="GAME SET!")
+                        activeEmbed = await activeEmbed.edit(embed=e)
                         status_state[4] += 1
-                        await updaterecord(challenged_ID,challenger_ID)
+                        await updaterecord(initiator_ID,opposition_ID)
+                        await activeEmbed.clear_reaction(str('👍'))
+                        game_state = [0,0]
                         game_confirm = 1
-                        await confirmation_submission.add_reaction(str('👍'))
-                        await winconfirm.delete(delay=5.0)
-                        await confirmation_requestb.delete(delay=5.0)
-                        await confirmation_submission.delete(delay=1.0)
-                    
-                    if confirmation_submission.author.id == challenger_ID and confirmation_submission.content == 'deny':
-                        abort = await abortCheck(winconfirm,gamelist,challengerStats[0],oppositionStats[0])
-                        confirm_check = 1
-                        game_confirm = 1
-                        await confirmation_submission.add_reaction(str('👍'))
-                        await winconfirm.delete(delay=2.0)
-                        await confirmation_requesta.delete(delay=1.5)
-                        await confirmation_submission.delete(delay=1.0)
-
                     
 
-
+        
             if status_state[3] == wontheSet or status_state[4] == wontheSet:
                 concluded = 1
                 await message.channel.send('Game match reached! Winner is decided')
            
             if status_state[3] == wontheSet:
-                await updaterecord(challenger_ID,challenged_ID, wager, value) #When status state 3 == status state 2, challenger has won.
+                await updaterecord(initiator_ID,opposition_ID, wager, value) #When status state 3 == status state 2, initiator has won.
             if status_state[4] == wontheSet:
-                await updaterecord(challenged_ID,challenger_ID, wager, value)
+                await updaterecord(opposition_ID,initiator_ID, wager, value)
     
     if abort:
         status_state[0] = await terminate(gamelist,message)
@@ -851,26 +959,28 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
 # Notes: 
 #####################################################################
 
-async def postresult(client,message,gamelist,status_state,date, wager = 0, value = 0):
+async def postresult(client,interaction,gamelist,status_state,date, wager = 0, value = 0):
     print('posting results in message channel')
 
+    gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
+
     dataframe = datadriver.loadTable(FILENAME)
-    challenger_name = message.author.name
-    challenged_name = message.mentions[0].name
-    challenger_rank = datadriver.getUserValue(dataframe,message.author.id,'RANK')
-    challenged_rank = datadriver.getUserValue(dataframe,message.mentions[0].id,'RANK')
+    initiator_name = initiatorStats[0]
+    opponent_name = oppositionStats[0]
+    initiator_rank = datadriver.getUserValue(gamelist[0],'ranking')
+    opponent_rank = datadriver.getUserValue(gamelist[1],'ranking')
     time = datetime.now()
     
-    e = discord.Embed(title = 'Challenge Results: ' + challenger_name + ' vs ' + challenged_name, description = 'Best of ' + str(status_state[1]))
+    e = discord.Embed(title = 'Challenge Results: ' + initiator_name + ' vs ' + opponent_name, description = 'Best of ' + str(status_state[1]))
     e.set_footer(text= 'Time of completion: ' + str(time) )
-    e.add_field(name='{0} - {1}'.format(challenger_name, challenger_rank), value = status_state[3], inline = True)
-    e.add_field(name='{0} - {1}'.format(challenged_name, challenged_rank), value = status_state[4], inline = True)
+    e.add_field(name='{0} - {1}'.format(initiator_name, initiator_rank), value = status_state[3], inline = True)
+    e.add_field(name='{0} - {1}'.format(opponent_name, opponent_rank), value = status_state[4], inline = True)
     
     channel = client.get_channel(861363885747470337)
     await channel.send(embed=e)
 
-    datadriver.updateUserValue(dataframe,gamelist[0],'IN_CHALLENGE',0)
-    datadriver.updateUserValue(dataframe,gamelist[1],'IN_CHALLENGE',0)
+    datadriver.updateUserValue(gamelist[0],'IN_CHALLENGE',0)
+    datadriver.updateUserValue(gamelist[1],'IN_CHALLENGE',0)
     status_state[0] = 5
 
 #####################################################################
@@ -884,34 +994,34 @@ async def postresult(client,message,gamelist,status_state,date, wager = 0, value
 # Notes:
 #####################################################################
 
-async def initialize(client,message):
+async def initialize(affiliatedIDs):
     #inital message will determine playerlist
     playerlist = []
-    challengerID = message.author.id
-    challengedID = message.mentions[0].id
-    playerlist.append(challengerID)
-    playerlist.append(challengedID)
+    initiatorID = affiliatedIDs[0]
+    opponentID = affiliatedIDs[1]
+    playerlist.append(initiatorID)
+    playerlist.append(opponentID)
     
 
     dataframe = datadriver.loadTable(FILENAME)
-    challengerStats = []
-    challengerStats.append(datadriver.getUserValue(dataframe,playerlist[0],'USERNAME'))
-    challengerStats.append(datadriver.getUserValue(dataframe,playerlist[0],'RANK'))
-    challengerStats.append(datadriver.getUserValue(dataframe,playerlist[0],'WINS'))
-    challengerStats.append(datadriver.getUserValue(dataframe,playerlist[0],'STREAK'))
+    initiatorStats = []
+    initiatorStats.append(datadriver.getUserValue(playerlist[0],'USERNAME'))
+    initiatorStats.append(datadriver.getUserValue(playerlist[0],'ranking'))
+    initiatorStats.append(datadriver.getUserValue(playerlist[0],'WINS'))
+    initiatorStats.append(datadriver.getUserValue(playerlist[0],'STREAK'))
 
     oppositionStats = []
-    oppositionStats.append(datadriver.getUserValue(dataframe,playerlist[1],'USERNAME'))
-    oppositionStats.append(datadriver.getUserValue(dataframe,playerlist[1],'RANK'))
-    oppositionStats.append(datadriver.getUserValue(dataframe,playerlist[1],'WINS'))
-    oppositionStats.append(datadriver.getUserValue(dataframe,playerlist[1],'STREAK'))
+    oppositionStats.append(datadriver.getUserValue(playerlist[1],'USERNAME'))
+    oppositionStats.append(datadriver.getUserValue(playerlist[1],'ranking'))
+    oppositionStats.append(datadriver.getUserValue(playerlist[1],'WINS'))
+    oppositionStats.append(datadriver.getUserValue(playerlist[1],'STREAK'))
 
     #SETS IN_CHALLENGE TO 1, USED IN NEGATING USERS CALLING OTHER COMMANDS WHILE IN CHALLENGE
-    toggleInChallenge(challengerID,1)
-    toggleInChallenge(challengedID,1)
+    #toggleInChallenge(initiatorID,1)
+    #toggleInChallenge(opponentID,1)
 
 
-    return playerlist, challengerStats, oppositionStats
+    return playerlist, initiatorStats, oppositionStats
     
 
 #####################################################################
@@ -925,7 +1035,7 @@ async def initialize(client,message):
 # Notes:
 #####################################################################
  
-async def update_state(status_state,state=0, gamecount=0,winstate=0,challenger_wincount = 0, challenged_wincount = 0):
+async def update_state(status_state,state=0, gamecount=0,winstate=0,initiator_wincount = 0, opponent_wincount = 0):
     status_state_temp = status_state
     print(0)
     if state == 2 :
@@ -936,9 +1046,9 @@ async def update_state(status_state,state=0, gamecount=0,winstate=0,challenger_w
         status_state[1] += 1
     if winstate != 0 :
         status_state[2] = winstate
-    if challenger_wincount != 0 :
+    if initiator_wincount != 0 :
         status_state[3] += 1
-    if challenged_wincount != 0 :
+    if opponent_wincount != 0 :
         status_state[4] += 1
     
     return status_state_temp
@@ -955,11 +1065,9 @@ async def update_state(status_state,state=0, gamecount=0,winstate=0,challenger_w
 # Notes:
 #####################################################################
 
-async def terminate(gamelist, message):
-    abortMessage = await message.channel.send('Challenged aborted, until next time.')
+async def terminate(gamelist):
     toggleInChallenge(gamelist[0],0)
     toggleInChallenge(gamelist[1],0)
-    await abortMessage.delete(delay=5.0)
     return -1
 
 async def abortCheck(message,gamelist,username1,username2):
@@ -1013,17 +1121,17 @@ async def abortCheck(message,gamelist,username1,username2):
 async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
 
     dataframe = datadriver.loadTable(FILENAME)
-    datadriver.updateUserValue(dataframe,winner_ID,'WINS')
-    datadriver.updateUserValue(dataframe,loser_ID,'LOSES')
+    datadriver.updateUserValue(winner_ID,'WINS')
+    datadriver.updateUserValue(loser_ID,'LOSES')
 
-    datadriver.updateUserValue(dataframe,winner_ID,'TOTAL')
-    datadriver.updateUserValue(dataframe,loser_ID,'TOTAL')
+    datadriver.updateUserValue(winner_ID,'TOTAL')
+    datadriver.updateUserValue(loser_ID,'TOTAL')
 
-    datadriver.updateUserValue(dataframe,winner_ID,'STREAK')
-    datadriver.updateUserValue(dataframe,loser_ID,'STREAK', "", 1)
+    datadriver.updateUserValue(winner_ID,'STREAK')
+    datadriver.updateUserValue(loser_ID,'STREAK', "", 1)
 
-    ratingW = datadriver.getUserValue(dataframe,winner_ID,'RANK')
-    ratingL = datadriver.getUserValue(dataframe,loser_ID,'RANK')
+    ratingW = datadriver.getUserValue(winner_ID,'ranking')
+    ratingL = datadriver.getUserValue(loser_ID,'ranking')
     print(ratingW)
     print(ratingL)
 
@@ -1032,17 +1140,17 @@ async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
     print(updatedW)
     print(updatedL)
 
-    datadriver.updateUserValue(dataframe,winner_ID,'RANK', updatedW)
-    print(datadriver.getUserValue(dataframe,winner_ID,'RANK'))
-    datadriver.updateUserValue(dataframe,loser_ID,'RANK', updatedL)
-    print(datadriver.getUserValue(dataframe,loser_ID,'RANK'))
+    datadriver.updateUserValue(winner_ID,'ranking', updatedW)
+    print(datadriver.getUserValue(winner_ID,'ranking'))
+    datadriver.updateUserValue(loser_ID,'ranking', updatedL)
+    print(datadriver.getUserValue(loser_ID,'ranking'))
 
     print('value of wager indicator'.format(wager))
 
     if wager:
-        winner_addy = datadriver.getUserValue(dataframe,winner_ID,'ETH_ADDY')
+        winner_addy = datadriver.getUserValue(winner_ID,'ETH_ADDY')
         print(winner_addy)
-        loser_addy = datadriver.getUserValue(dataframe,loser_ID,'ETH_ADDY')
+        loser_addy = datadriver.getUserValue(loser_ID,'ETH_ADDY')
         print(loser_addy)
 
         #await asyncio.create_task(web3_logic.updateBalance(winner_addy,value,1))
@@ -1145,83 +1253,5 @@ def EloRating(Ra, Rb, K, d):
     return Ra, Rb;
 
 
-
-
-
-
-
-
-
-# MYSQL IMPLEMETATION of updaterecord(winner_ID, loser_id, game=0): NOTED FOR FUTURE REFERENCE
-    #async def updaterecord(winner_str,loser_str, game = 0):
-    #winner_str = winner_str
-    #loser_str = loser_str
-    #game = game
-    #
-    #conn = pyodbc.connect('Driver={SQL Server};'
-    #                  'Server=msi\sqlexpress;'
-    #                  'Database=dojobot_stats;'
-    #                  'Trusted_Connection=yes;')
-    #if loser_str != '0':
-    #    #Updates win_count of winner user_name in localhost SQL Server
-    #    cursor = conn.cursor()
-    #    sql = "UPDATE datas SET win_count = (win_count + 1) WHERE CONVERT(VARCHAR, user_name) = (?);"
-    #    val = (winner_str)
-    #    cursor.execute(sql,val)
-    #
-    #if loser_str != '0':
-    #    #Updates lose count with loser user_name in localhost SQL server
-    #    sql = "UPDATE datas SET lose_count = (lose_count + 1) WHERE CONVERT(VARCHAR, user_name) = (?);"
-    #    val = (loser_str)
-    #    cursor.execute(sql,val)
-    #
-    #Updates challenge win
-    #if game == 1:
-    #    sql = "UPDATE datas SET challenge_wins = (challenge_win + 1) WHERE CONVERT(VARCHAR, user_name) = (?);"
-    #    val = (winner_str)
-    #    cursor.execute(sql,val)
-    #   
-    #conn.commit()
-
-   #records.txtle’? y
-
-# MYSQL IMPLEMENTATIOM FOR stats(message): SAVED FOR FUTURE REFERENCE
-#    if message.mentions:
-#        targeted_id = message.mentions[0].id
-#    else:
-#        targeted_id = message.author.id
-#        
-#    conn = pyodbc.connect('Driver={SQL Server};'
-#                      'Server=msi\sqlexpress01;'
-#                      'Database=dojobot_stats;'
-#                      'Trusted_Connection=yes;')
-#    
-#    cursor = conn.cursor()
-#    sql = "SELECT win_count FROM datas WHERE user_id = (?);"
-#    val = (targeted_id)
-#    cursor.execute(sql,val)
-#    wincount = cursor.fetchone()[0] #fetchone returns type tuple. First element is count
-#    
-#    sql = "SELECT lose_count FROM datas WHERE user_id = (?);"
-#    val = (targeted_id)
-#    cursor.execute(sql,val)
-#    losecount = cursor.fetchone()[0]
-#    
-#    if losecount == 0:
-#        ratio = 0
-#   else:
-#        ratio = int(wincount) / int(losecount)
-#    
-#    if message.mentions:
-#        targeted_id = message.mentions[0].name
-#    else:
-#        targeted_id = message.author.name
-#    
-#    e = discord.Embed(title = str(targeted_id) + ' server stats', description = ' ')
-#    e.add_field(name='Wins', value = wincount, inline = True)
-#    e.add_field(name='Loses', value = losecount, inline = True)
-#    e.add_field(name='W/L Ratio', value = ratio, inline = True)
-#    
-#    await message.channel.send(embed=e)
 
 client.run(BOT_TOKEN)
