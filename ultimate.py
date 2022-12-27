@@ -1,10 +1,5 @@
 import discord
 from discord import app_commands
-import random
-import linecache
-import re
-import shelve
-import copy
 import math
 from random import shuffle, randint  
 from datetime import datetime
@@ -56,7 +51,7 @@ POLL_INTERVAL = 5
 RANK_THRESHOLD = 100
 #RANKLIST = treeSet.TreeSet()
 FILENAME = os.getenv('FILENAME')
-dataframe = datadriver.loadTable(FILENAME)
+#dataframe = datadriver.loadTable(FILENAME)
 
 @client.event
 async def on_ready():
@@ -100,7 +95,6 @@ async def on_ready():
 # Author: Deanta Pittman
 #
 #####################################################################
-
 @client.tree.command()
 async def buttontester(interaction: discord.Interaction, member: discord.Member):
     print(interaction.expires_at)
@@ -362,7 +356,7 @@ async def logout(interaction: discord.Interaction):
 # Notes: 
 #####################################################################
 def toggleInChallenge(userID, toggle):
-    df = datadriver.loadTable(FILENAME)
+    #df = datadriver.loadTable(FILENAME)
     datadriver.updateUserValue(userID,'IN_CHALLENGE',toggle)
     
 
@@ -399,8 +393,9 @@ async def getrank(interaction: discord.Interaction):
 
 @client.tree.command()
 async def getbalance(interaction: discord.Interaction, member: discord.Member):
-    dataframe = datadriver.loadTable(FILENAME)
+    #dataframe = datadriver.loadTable(FILENAME)
     addy = datadriver.getUserValue(member.id,'ETH_ADDY')
+    print("returned addy: {}".format(addy))
     if web3_logic.isUser(addy):
         balance = web3_logic.getBalance(addy)
         await interaction.response.send_message('Current Balance: {}'.format(balance))
@@ -964,7 +959,7 @@ async def postresult(client,interaction,gamelist,status_state,date, wager = 0, v
 
     gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
 
-    dataframe = datadriver.loadTable(FILENAME)
+    #dataframe = datadriver.loadTable(FILENAME)
     initiator_name = initiatorStats[0]
     opponent_name = oppositionStats[0]
     initiator_rank = datadriver.getUserValue(gamelist[0],'ranking')
@@ -1003,7 +998,7 @@ async def initialize(affiliatedIDs):
     playerlist.append(opponentID)
     
 
-    dataframe = datadriver.loadTable(FILENAME)
+    #dataframe = datadriver.loadTable(FILENAME)
     initiatorStats = []
     initiatorStats.append(datadriver.getUserValue(playerlist[0],'USERNAME'))
     initiatorStats.append(datadriver.getUserValue(playerlist[0],'ranking'))
@@ -1120,7 +1115,7 @@ async def abortCheck(message,gamelist,username1,username2):
 
 async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
 
-    dataframe = datadriver.loadTable(FILENAME)
+    #dataframe = datadriver.loadTable(FILENAME)
     datadriver.updateUserValue(winner_ID,'WINS')
     datadriver.updateUserValue(loser_ID,'LOSES')
 

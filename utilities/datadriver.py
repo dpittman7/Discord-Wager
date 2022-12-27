@@ -1,5 +1,3 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import os
 import mysql.connector
 from dotenv import load_dotenv
@@ -8,7 +6,7 @@ load_dotenv()
 #READ THE DOCS (PANDAS): https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
 #READ THE DOCS (MySQL): https://dev.mysql.com/doc/refman/8.0/en/entering-queries.html
 
-DATABASE_USER= os.getenv('DATABASE_USER')
+DATABASE_USER = os.getenv('DATABASE_USER')
 DATABASE_PASS = os.getenv('DATABASE_PASS')
 DATABASE_HOST = os.getenv('DATABASE_HOST')
 DATABASE_NAME = os.getenv('DATABASE_NAME')
@@ -39,15 +37,15 @@ def addUser(userID, username, addy, filename, total = 0, streak = 0, ranking = 1
 
         
 #Not needed with SQL rewrite       
-def locateUser(dataframe,userID):
-        
-        try:
-                indexList = dataframe.index # returns Int64Index[] https://www.dataforeverybody.com/convert-pandas-index-list-array/
-                stdlist = list(indexList)
-                userIndex = stdlist.index(userID)
-                return userIndex
-        except:
-                return -1
+#def locateUser(dataframe,userID):
+#        
+#        try:
+#                indexList = dataframe.index # returns Int64Index[] https://www.dataforeverybody.com/convert-pandas-index-list-array/
+#                stdlist = list(indexList)
+#                userIndex = stdlist.index(userID)
+#                return userIndex
+#        except:
+#                return -1
 
 
 def getUserRow(userID):
@@ -73,10 +71,10 @@ def getUserRow(userID):
         #to do, access data by index following lookup
 
 
-def loadTable(filename):
-        dataframe = pd.read_csv(filename, index_col=0)
-        print(dataframe)
-        return dataframe
+#def loadTable(filename):
+        #dataframe = pd.read_csv(filename, index_col=0)
+        #print(dataframe)
+        #return dataframe
 
 def updateUserValue(userID,header,value = 0, reset = 0):
         if header == 'WINS' or header == 'TOTAL' or header == 'LOSES':
