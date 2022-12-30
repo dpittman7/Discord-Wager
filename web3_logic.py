@@ -16,7 +16,7 @@ load_dotenv()
 from solcx import compile_standard, install_solc
 from web3 import Web3
 
-COMMISSIONFEE = .03
+COMMISSIONFEE = .05
 
 #pool transactions? note nonce problem in race conditions.
 #load_dotenv()
