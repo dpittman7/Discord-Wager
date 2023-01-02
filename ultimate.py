@@ -47,7 +47,7 @@ reaction = discord.Reaction
 ETHERSCAN_TOKEN= os.getenv('ETHERSCAN_TOKEN')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CURRENT_CONTRACT = os.getenv('CONTRACT_ADDY')
-POLL_INTERVAL = 5
+POLL_INTERVAL = 30
 RANK_THRESHOLD = 100
 #RANKLIST = treeSet.TreeSet()
 FILENAME = os.getenv('FILENAME')
@@ -95,91 +95,93 @@ async def on_ready():
 # Author: Deanta Pittman
 #
 #####################################################################
-@client.tree.command()
-async def buttontester(interaction: discord.Interaction, member: discord.Member):
-    print(interaction.expires_at)
 
-    #Build Embed to be sent
-    e = discord.Embed(title = 'Button Debugger')
-    
-    #Build buttons 
-    button_one = Button(label="Button One toggled")
-    button_two = Button(label="Button Two toggled")
-    view = View(timeout = 600)
-    view.add_item(button_one)
-    view.add_item(button_two)
-
-    #Send Initial Response
-    og_response = await interaction.response.send_message(embed=e, view=view)
-    print(og_response)
-    #await og_response.defer()
-
-    print("indicatior 1")
-    win_status = [0,0]
-    confirm_status = [0,0]
-
-    async def button_one_callback(interaction):
-        print('interaction received')
-        #assign check confirming button user is correct
-        
-        #if button two has not toggled - initial win
-        if win_status[1] == 0:
-            win_status[0] = 1
-            button_one.disabled = True
-            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
-            await interaction.edit_original_response(embed=e, view=view)
-
-        #if button two is toggled - claiming win
-        if win_status[1] == 1:
-            confirm_status[0] = 1
-            button_one.disabled = True
-            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
-            await interaction.edit_original_response(embed=e, view=view)
-
-    
-    async def button_two_callback(interaction):
-        print('interaction received')
-        #assign check confirming button user is correct
-        
-        #if button one has not toggled - initial win
-        if win_status[0] == 0:
-            win_status[1] = 1
-            button_one.disabled = True
-            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
-            await interaction.edit_original_response(embed=e, view=view)
-
-        #if button two is toggled - claiming win
-        if win_status[0] == 1:
-            confirm_status[1] = 1
-            button_one.disabled = True
-            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
-            await interaction.edit_original_response(embed=e, view=view)
-    
-    async def status_check(interaction, win_status, confirm_status):
-        concluded = 0
-        
-        if win_status[0] == 1 and confirm_status[1] == 1:
-            e.add_field(name='button_one win - end interaction', value=1, inline = False)
-            concluded = 1
-            #await interaction.edit_original_response(embed=e, view=view)
-        
-        if win_status[1] == 1 and confirm_status[0] == 1:
-            e.add_field(name='button_two win - end interaction', value=1, inline = False)
-            concluded = 1
-            #await interaction.edit_original_response(embed=e, view=view)
-        return concluded
-            
-
-
-
-    #Enter incomplete state
-    
-    finished = 0
-    print("in indicatior loop")
-    while(not finished):
-        button_one.callback = button_one_callback
-        button_two.callback = button_two_callback
-        finished = await status_check(interaction,win_status,confirm_status)
+#@client.tree.command()
+#async def buttontester(interaction: discord.Interaction, member: discord.Member):
+#    print(interaction.expires_at)
+#
+#    #Build Embed to be sent
+#    e = discord.Embed(title = 'Button Debugger')
+#    
+#    #Build buttons 
+#    button_one = Button(label="Button One toggled")
+#    button_two = Button(label="Button Two toggled")
+#
+#    view = View(timeout = 600)
+#    view.add_item(button_one)
+#    view.add_item(button_two)
+#
+#    #Send Initial Response
+#    og_response = await interaction.response.send_message(embed=e, view=view)
+#    print(og_response)
+#    #await og_response.defer()
+#
+#    print("indicatior 1")
+#    win_status = [0,0]
+#    confirm_status = [0,0]
+#
+#    async def button_one_callback(interaction):
+#        print('interaction received')
+#        #assign check confirming button user is correct
+#        
+#        #if button two has not toggled - initial win
+#        if win_status[1] == 0:
+#            win_status[0] = 1
+#            button_one.disabled = True
+#            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
+#            await interaction.edit_original_response(embed=e, view=view)
+#
+#        #if button two is toggled - claiming win
+#        if win_status[1] == 1:
+#            confirm_status[0] = 1
+#            button_one.disabled = True
+#            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
+#            await interaction.edit_original_response(embed=e, view=view)
+#
+#    
+#    async def button_two_callback(interaction):
+#        print('interaction received')
+#        #assign check confirming button user is correct
+#        
+#        #if button one has not toggled - initial win
+#        if win_status[0] == 0:
+#            win_status[1] = 1
+#            button_one.disabled = True
+#            e.add_field(name='button_one toggled - pending button_two', value=1, inline = False)
+#            await interaction.edit_original_response(embed=e, view=view)
+#
+#        #if button two is toggled - claiming win
+#        if win_status[0] == 1:
+#            confirm_status[1] = 1
+#            button_one.disabled = True
+#            e.add_field(name='button_one toggled - confirmed button_two toggle', value=1, inline = False)
+#            await interaction.edit_original_response(embed=e, view=view)
+#    
+#    async def status_check(interaction, win_status, confirm_status):
+#        concluded = 0
+#        
+#        if win_status[0] == 1 and confirm_status[1] == 1:
+#            e.add_field(name='button_one win - end interaction', value=1, inline = False)
+#            concluded = 1
+#            #await interaction.edit_original_response(embed=e, view=view)
+#        
+#        if win_status[1] == 1 and confirm_status[0] == 1:
+#            e.add_field(name='button_two win - end interaction', value=1, inline = False)
+#            concluded = 1
+#            #await interaction.edit_original_response(embed=e, view=view)
+#        return concluded
+#            
+#
+#
+#
+#    #Enter incomplete state
+#    
+#    finished = 0
+#    print("in indicatior loop")
+#    while(not finished):
+#        button_one.callback = button_one_callback
+#        button_two.callback = button_two_callback
+#        finished = await status_check(interaction,win_status,confirm_status)
         
 
 
@@ -204,14 +206,15 @@ async def on_message(message):
                                                                                                                                                                                                                                                            
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: contractLogger(discord.channel)
+# Parameters: channel - 
 #
-# Behavior:
+# Behavior: represents channel in server where contract-events are
+#           to be posted.
 #
-# Returns:
+# Returns: -
 # Author: Deanta Pittman
-# Notes: 
+# Notes: All events are logged in nohup.out in prod. Consider creating logging system.
 #####################################################################
 
 async def contractLogger(channel):
@@ -227,7 +230,7 @@ async def contractLogger(channel):
         e.set_footer(text='The Messenger Brings News', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
         
         await channel.send(embed=e)
-        #Need to integrate into initiaize function
+
         #DISPLAY
     for addy, withdrawl, userBalance in withdrawFunds_log:
         
@@ -248,7 +251,7 @@ async def contractLogger(channel):
     for addy, depositAmount, userBalance in depositFunds_log:
 
         print("inside Embed Formation")
-        e = discord.Embed(title = 'Contract Event Emit', description='Credit Deposit', url = 'https://rinkeby.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
+        e = discord.Embed(title = 'Contract Event Emit', description='Credit Deposit', url = 'https://goerli.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
         e.add_field(name='User Address', value=addy, inline = False)
         e.add_field(name='Deposit Amount', value='{} Wei'.format(depositAmount), inline = True)
         e.add_field(name='Current Balance', value='{} Wei'.format(userBalance), inline = True)
@@ -263,7 +266,7 @@ async def contractLogger(channel):
     for addy, rank in rankUpdated_log:
 
         print("inside Embed Formation")
-        e = discord.Embed(title = 'Contract Event Emit', description='User Rank Updated', url = 'https://rinkeby.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
+        e = discord.Embed(title = 'Contract Event Emit', description='User Rank Updated', url = 'https://goerli.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
         e.add_field(name='User Address', value=addy, inline = False)
         e.add_field(name='Current Rank', value='{}'.format(rank), inline = True)
         e.set_footer(text='The Messenger Brings News', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
@@ -277,7 +280,7 @@ async def contractLogger(channel):
     for addy, balance in balanceUpdated_log:
 
         print("inside Embed Formation")
-        e = discord.Embed(title = 'Contract Event Emit', description='User Balance Updated', url = 'https://rinkeby.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
+        e = discord.Embed(title = 'Contract Event Emit', description='User Balance Updated', url = 'https://goerli.etherscan.io/address/{}#events'.format(CURRENT_CONTRACT))
         e.add_field(name='User Address', value=addy, inline = False)
         e.add_field(name='Current Balance', value='{} Wei'.format(balance), inline = True)
         e.set_footer(text='The Messenger Brings News', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
@@ -292,18 +295,16 @@ async def contractLogger(channel):
          
         
 
-#####################################################################
-# Function:
-# Parameters:
+########################################################################
+# Function: login(discord.interaction)
+# Parameters: interaction - SLASH COMMAND
 #
-# Behavior:
+# Behavior: Discord facing status / grants user role 'Active' in server.
 #
 # Returns:
 # Author: Deanta Pittman
-# Notes: 
-#####################################################################
-
-#lazy code, will need to update it for the bot to be mass launched.
+# Notes: Add database interaction to be able to reflect status on website
+#########################################################################
 @client.tree.command()
 async def login(interaction: discord.Interaction):
     user = interaction.user
@@ -319,16 +320,16 @@ async def login(interaction: discord.Interaction):
         await user.remove_roles(role)
 
 
-#####################################################################
-# Function:
-# Parameters:
+########################################################################
+# Function: logout(discord.interaction)
+# Parameters: interaction - SLASH COMMAND
 #
-# Behavior:
+# Behavior: Discord facing status / grants user role 'InActive' in server.
 #
 # Returns:
 # Author: Deanta Pittman
-# Notes: 
-#####################################################################
+# Notes: Add database interaction to be able to reflect status on website
+#########################################################################
 
 #will need to add timeout when launched onto external server    
 @client.tree.command()
@@ -346,10 +347,11 @@ async def logout(interaction: discord.Interaction):
         await user.remove_roles(role)
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: toggleInChallenge(userID,toggle)
+# Parameters: toggle - control parameter to determine which state to 
+#                      toggle to.
 #
-# Behavior:
+# Behavior: InChallenge must be false to initiate new challenges
 #
 # Returns:
 # Author: Deanta Pittman
@@ -361,15 +363,16 @@ def toggleInChallenge(userID, toggle):
     
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: getRank(discord.interaction)
+# Parameters: interaction - SLASH COMMAND
 #
-# Behavior: Retreives message sender rank
+# Behavior: Retreives message sender rank from server database
 #
 # Returns:
 # Author: Deanta Pittman
 #
-# Notes:
+# Notes: To further decentralize, consider to call web3 value directly.
+#        Server mirrors Contract Values. CQRS style database segregation.
 #####################################################################   
 @client.tree.command()
 async def getrank(interaction: discord.Interaction):
@@ -378,18 +381,19 @@ async def getrank(interaction: discord.Interaction):
     await interaction.response.send_message('Current Rank: {}'.format(rank))
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: getbalance(interaction, member)
+# Parameters: interaction - SLASH COMMAND
+#             member - discord.member -> used to access member.id to 
+#                                        retreive ETH addy.
 #
 # Behavior: Retreives block value of balance
 #
 # Returns:
 # Author: Deanta Pittman
 #
-# Notes: will need to add timer function when launched onto external server
+# Notes: Balance must always be validated by contract to 
+#        avoid any possible race conditions.
 #####################################################################  
-
-
 
 @client.tree.command()
 async def getbalance(interaction: discord.Interaction, member: discord.Member):
@@ -403,15 +407,19 @@ async def getbalance(interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_message('User is not currently registered in contract.')   
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: initialieuser
+# Parameters: interaction -> SLASH COMMAND
+#             ethaddress -> ethereum address to be added to contract.
+#             profilepic -> to be downloaded to server, uploaded to imgur, and link stored.
 #
-# Behavior: HAVE FUNCTION LOCAL TO WEBSITE
+# Behavior: initalizes the user (duh.) adds user to local database and to 
+#           ethereum smart contract. error handling applied at module.
+#           
 #
-# Returns:
+# Returns: None - returns error status for interaction
 # Author: Deanta Pittman
 #
-# Notes: Implement questioning in user DM's
+# Notes: Need to validate passed ETH addy and error handling to datadriver class
 #####################################################################  
 
 @client.tree.command()
@@ -419,9 +427,19 @@ async def initializeuser(interaction: discord.Interaction, ethaddress: str, prof
         filename = "{}_pfp".format(interaction.user.id)
         await profilepic.save("profilepics/{}.png".format(filename))
         #Need to add logic to validate user inputted address
-        datadriver.addUser(interaction.user.id,interaction.user.name,ethaddress,filename)
-        web3_logic.addUser(ethaddress)
-        await interaction.response.send_message('User added, welcome to the mix {}!'.format(interaction.user.name))
+        errors = []
+        sqlerror = datadriver.addUser(interaction.user.id,interaction.user.name,ethaddress,filename)
+        if sqlerror:
+            errors.append(sqlerror)
+
+        web3error = web3_logic.addUser(ethaddress)
+        if web3error:
+            errors.append(web3error)
+        
+        if errors:
+            await interaction.response.send_message('Following errors occured: {}'.format(errors))
+        else:
+            await interaction.response.send_message('User added, welcome to the mix {}!'.format(interaction.user.name))
 
         
 #add rank difference to eligible function
@@ -437,7 +455,7 @@ async def initializeuser(interaction: discord.Interaction, ethaddress: str, prof
 #
 # Notes: Implement questioning in user DM's
 #####################################################################
-async def eligible(interaction, gamelist,wagerValue):
+async def eligible(gamelist,wagerValue):
     eligible = 0
     #dataframe = datadriver.loadTable(FILENAME)
     try:
@@ -469,7 +487,7 @@ async def eligible(interaction, gamelist,wagerValue):
 async def selectWager(interaction,gamelist, initiatorData, opponentData):
     
 
-    r = requests.get('https://api.etherscan.io/api?module=stats&action=ethprice&apikey={}'.format(ETHERSCAN_TOKEN))
+    r = requests.get('https://api.etherscan.io/api?module=stats&action=ethprice&apikey={}'.format(ETHERSCAN_TOKEN)) #Etherscan API
     ethprice = float(r.json()["result"]["ethusd"])
     print(ethprice)
     e = discord.Embed(title = 'Select Wager Amount', color=discord.Color.yellow())
@@ -550,10 +568,12 @@ async def selectWager(interaction,gamelist, initiatorData, opponentData):
 
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: challenge(interaction, opponent, wager)
+# Parameters: interaction -> SLASH COMMAND
+#             opponent -> to retreive opponents id.
+#             wager -> to toggle a wager match or not.
 #
-# Behavior:
+# Behavior: To initate a challenge between two users.
 #
 # Returns:
 # Author: Deanta Pittman
@@ -563,7 +583,7 @@ async def selectWager(interaction,gamelist, initiatorData, opponentData):
 @client.tree.command()
 async def challenge(interaction: discord.Interaction, opponent: discord.Member, wager: bool):
 
-    dataframe = datadriver.loadTable(FILENAME)
+    # dataframe = datadriver.loadTable(FILENAME)
     initiator = interaction.user
     await interaction.response.send_message(f'.')
     
@@ -580,22 +600,22 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
         print(datadriver.getUserRow(opponent.id))
         print(datadriver.getUserRow(initiator.id))
         await interaction.edit_original_response(content="complete current challenge")
-        error = await terminate(gamelist)
         return
     
-    
+    toggleInChallenge(initiator.id,1)
+    toggleInChallenge(opponent.id,1)
+
     if(wager):
-        value = await selectWager(interaction, gamelist, initiatorData, oppositionData)
-        if not await eligible(interaction, gamelist, value):
-            errorMessage = await interaction.edit_original_response(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
-            await errorMessage.delete(delay=10.0)
+        value = await selectWager(interaction,gamelist, initiatorData, oppositionData)
+        if not await eligible(gamelist, value):
+            await interaction.edit_original_response(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
+            await asyncio.sleep(5)
             status_state[0] = await terminate(gamelist)
             
     
     print(0)
     #initiate challenge
-    toggleInChallenge(initiator.id,1)
-    toggleInChallenge(opponent.id,1)
+    
     #print(gamelist[1])
     if status_state[0] == 0:  status_state, activeEmbed = await confirm(client, interaction, gamelist, status_state, reaction, wager, value)
     print(status_state[0])
@@ -611,12 +631,18 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
 
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: confirm(client, interaction, gamelist, status_state, reaction, wager, value)
+# Parameters: client ->
+#             interaction -> 
+#             gamelist -> 
+#             status_state
+#             reaction ->
+#             wager ->
+#             value ->
 #
-# Behavior:
+# Behavior: confirmation prompt, opponent selects reaction to continue the script.
 #
-# Returns:
+# Returns: 
 # Author: Deanta Pittman
 # Notes: 
 #####################################################################
@@ -636,7 +662,7 @@ async def confirm(client, interaction, gamelist, status_state, reaction, wager =
     e.add_field(name='STREAK', value=initiatorStats[3], inline = True)
     e.add_field(name='vs', value=" --- pending --- ", inline = False)
     e.add_field(name='OPPOSITION', value=oppositionStats[0], inline = False)
-    e.add_field(name='RANK', value=oppositionStats[1], inline = True)
+    e.add_field(name='RANK', value=oppositionStats[1], inline = True) 
     e.add_field(name='WINS', value=oppositionStats[2], inline = True)
     e.add_field(name='STREAK', value=oppositionStats[3], inline = True)
     if wager:
@@ -688,7 +714,13 @@ async def confirm(client, interaction, gamelist, status_state, reaction, wager =
 
 #####################################################################
 # Function:
-# Parameters:
+# Parameters: client ->
+#             interaction -> 
+#             gamelist -> 
+#             status_state
+#             reaction ->
+#             wager ->
+#             value ->
 #
 # Behavior:
 #
@@ -811,8 +843,14 @@ async def gamecount(client, interaction, status_state, gamelist, activeEmbed): #
 
 
 #####################################################################
-# Function:
-# Parameters:
+# Function: inprogress(client, message, gamelist,status_state,wager,value,activeEmbed )
+# Parameters: client ->
+#             interaction -> 
+#             gamelist -> 
+#             status_state
+#             reaction ->
+#             wager ->
+#             value -> 
 #
 # Behavior:
 #
@@ -857,7 +895,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
             e.add_field(name= 'Game Number', value=(games + 1), inline=False)
             e.add_field(name=initiator_name, value = status_state[3], inline = True)
             e.add_field(name=opponent_name, value = status_state[4], inline = True)
-            e.set_footer(text='WINNER SAY win IN CHAT TO CLAIM WIN, opponent either type confirm or deny.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
+            e.set_footer(text='Winner Selects Reaction.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
 
             await activeEmbed.edit(embed = e)
             
@@ -870,10 +908,10 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
 
             await activeEmbed.add_reaction(str('1️⃣')) #unicode for 100 points
             
-            while game_confirm == 0:
+            while not game_confirm:
                 
 
-                #Process reaction
+                #Await users to play game and winner adds reaction
                 reactEvent = await client.wait_for('reaction_add')
                 reaction = reactEvent[0]
                 print(reaction) #Reaction Object of awaited react event
@@ -881,35 +919,44 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
                 print(reactorID)
                 print(game_state)
 
-                #Initiator reacts
+
+                #Initiator gets inital reaction -> Prompt for confirmation
                 if reactorID == initiator_ID and str(reactEvent[0]) == str('1️⃣'):
                     #Initiator claiming win
                     if(game_state[0] == 0 and game_state[1] == 0):
-                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="CONFIRM?")
-                        activeEmbed = await activeEmbed.edit(embed=e)
+                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="confirm?")
+                        e.set_footer(text='Loser confirm by selecting reaction.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
+                        await activeEmbed.edit(embed=e)
                         await activeEmbed.clear_reaction(str('1️⃣')) #unicode for 100 points
                         await activeEmbed.add_reaction(str('👍')) #unicode for cross mark
                         game_state[0] = 1
                 
+                #Initiator confirming reaction -> 
                 if reactorID == initiator_ID and str(reactEvent[0]) == str('👍'):
                     print("confirm check 1")
                     print(game_state)
                     #Initiator confirming win
                     if(game_state[0] == 0 and game_state[1] == 1):
                         print("initiator confirming win")
-                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="GAME SET!")
-                        activeEmbed = await activeEmbed.edit(embed=e)
+                        e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="win claimed.")
+                        await activeEmbed.edit(embed=e)
                         status_state[3] += 1
                         await updaterecord(initiator_ID,opposition_ID)
                         game_state = [0,0]
                         await activeEmbed.clear_reaction(str('👍')) #unicode for 100 points
                         game_confirm = 1
+                
 
+
+                #Opponent gets inital reaction -> Prompt for confirmation
                 if reactorID == opposition_ID and str(reactEvent[0]) == str('1️⃣'):
                     #Opposition claiming win
                     if(game_state[0] == 0 and game_state[1] == 0):
-                        e.set_field_at(index=1,name='{}'.format(initiatorStats[0]),value="CONFIRM?")
+                        e.set_field_at(index=1,name='{}'.format(initiatorStats[0]),value="confirm?")
+                        e.set_footer(text='Loser confirm by selecting reaction.', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
                         activeEmbed = await activeEmbed.edit(embed=e)
+                        await activeEmbed.clear_reaction(str('1️⃣')) #unicode for 100 points
+                        await activeEmbed.add_reaction(str('👍')) #unicode for cross mark
                         game_state[1] = 1
                 
                 if reactorID == opposition_ID and str(reactEvent[0]) == str('👍'):
@@ -918,13 +965,22 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
                     #Initiator confirming win
                     if(game_state[0] == 1 and game_state[1] == 0):
                         print("opposition confirming win")
-                        e.set_field_at(index=1,name='{}'.format(oppositionStats[0]),value="GAME SET!")
-                        activeEmbed = await activeEmbed.edit(embed=e)
+                        e.set_field_at(index=1,name='{}'.format(oppositionStats[0]),value="win claimed.")
+                        await activeEmbed.edit(embed=e)
                         status_state[4] += 1
                         await updaterecord(initiator_ID,opposition_ID)
                         await activeEmbed.clear_reaction(str('👍'))
                         game_state = [0,0]
                         game_confirm = 1
+
+                if game_confirm:
+                    await asyncio.sleep(3)
+                    e.set_field_at(index=1,name='{}'.format(oppositionStats[0]),value="next round loading.")
+                    e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="gl.")
+                    await activeEmbed.edit(embed=e)
+                    asyncio.sleep(3)
+
+
                     
 
         
@@ -1125,8 +1181,8 @@ async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
     datadriver.updateUserValue(winner_ID,'STREAK')
     datadriver.updateUserValue(loser_ID,'STREAK', "", 1)
 
-    ratingW = datadriver.getUserValue(winner_ID,'ranking')
-    ratingL = datadriver.getUserValue(loser_ID,'ranking')
+    ratingW = int(float(datadriver.getUserValue(winner_ID,'ranking')))
+    ratingL = int(float(datadriver.getUserValue(loser_ID,'ranking')))
     print(ratingW)
     print(ratingL)
 
@@ -1135,10 +1191,6 @@ async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
     print(updatedW)
     print(updatedL)
 
-    datadriver.updateUserValue(winner_ID,'ranking', updatedW)
-    print(datadriver.getUserValue(winner_ID,'ranking'))
-    datadriver.updateUserValue(loser_ID,'ranking', updatedL)
-    print(datadriver.getUserValue(loser_ID,'ranking'))
 
     print('value of wager indicator'.format(wager))
 
@@ -1147,6 +1199,11 @@ async def updaterecord(winner_ID,loser_ID, wager = 0, value = 0):
         print(winner_addy)
         loser_addy = datadriver.getUserValue(loser_ID,'ETH_ADDY')
         print(loser_addy)
+
+        datadriver.updateUserValue(winner_ID,'ranking', updatedW)
+        print(datadriver.getUserValue(winner_ID,'ranking'))
+        datadriver.updateUserValue(loser_ID,'ranking', updatedL)
+        print(datadriver.getUserValue(loser_ID,'ranking'))
 
         #await asyncio.create_task(web3_logic.updateBalance(winner_addy,value,1))
         #await asyncio.create_task(web3_logic.updateBalance(loser_addy,value,1))

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 #READ THE DOCS (PANDAS): https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
 #READ THE DOCS (MySQL): https://dev.mysql.com/doc/refman/8.0/en/entering-queries.html
+#Standard Practice with connecting to DB w/ connector: https://stackoverflow.com/questions/5504340/python-mysqldb-connection-close-vs-cursor-close
 
 DATABASE_USER = os.getenv('DATABASE_USER')
 DATABASE_PASS = os.getenv('DATABASE_PASS')
@@ -18,8 +19,6 @@ config = {
         'database': DATABASE_NAME,
 }
 
-cnx = mysql.connector.connect(**config)
-cursor = cnx.cursor()
 
 def addUser(userID, username, addy, filename, total = 0, streak = 0, ranking = 1000, win = 0, loses = 0, inchallenge = 0):
         #PANDAS VERSION
@@ -28,12 +27,25 @@ def addUser(userID, username, addy, filename, total = 0, streak = 0, ranking = 1
         #saveTable(_dataframe, filename)
 
         #SQL VERSION
+        cnx = mysql.connector.connect(**config)
+        cursor = cnx.cursor()
         profileurl = uploadImage(filename)
         query = ("INSERT INTO leaderboard_user(id,wins,loses,total,streak,ranking,eth_addy,in_challenge,username,profileurl) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)")
         data = (userID,win,loses,total,streak,ranking,addy,inchallenge,username,profileurl)
-        cursor.execute(query,data)
-        cnx.commit()
-        print(cursor)
+        try:
+            cursor.execute(query,data)
+            print(cursor)
+            cnx.commit()
+            error = False
+        except mysql.connector.IntegrityError as err:
+            error = "User already locally registered."
+        except:
+            error = "Uncaught exception - plz notify admin to investigate."
+
+        cursor.close()
+        cnx.close()
+        
+        return error
 
         
 #Not needed with SQL rewrite       
@@ -50,13 +62,19 @@ def addUser(userID, username, addy, filename, total = 0, streak = 0, ranking = 1
 
 def getUserRow(userID):
 
+        cnx = mysql.connector.connect(**config)
+        cursor = cnx.cursor()
         query = ("SELECT * FROM leaderboard_user WHERE id = %s")
         data = (userID,)
         try:
                 cursor.execute(query,data)
                 result = cursor.fetchone()
+                cursor.close()
+                cnx.close()
                 return list(result)
         except: 
+                cursor.close()
+                cnx.close()
                 return -1
 
 
@@ -77,6 +95,10 @@ def getUserRow(userID):
         #return dataframe
 
 def updateUserValue(userID,header,value = 0, reset = 0):
+
+        cnx = mysql.connector.connect(**config)
+        cursor = cnx.cursor()
+
         if header == 'WINS' or header == 'TOTAL' or header == 'LOSES':
                 query = ("UPDATE leaderboard_user SET {0} = {0} + 1 WHERE id = {1}".format(header,userID))
                 #dataframe.at[userID,header] += 1
@@ -87,7 +109,7 @@ def updateUserValue(userID,header,value = 0, reset = 0):
                 else:
                         #dataframe.at[userID,header] += 1
                         query = ("UPDATE leaderboard_user SET {0} = {0} + 1 WHERE id = {1}".format(header,userID))
-        if header == 'RANK' or header == 'ETH_ADDY' or header == 'IN_CHALLENGE':
+        if header == 'ranking' or header == 'ETH_ADDY' or header == 'IN_CHALLENGE':
                 #dataframe.at[userID,header] = value
                 query = ("UPDATE leaderboard_user SET {0} = {2} WHERE id = {1}".format(header,userID,value))
         
@@ -96,42 +118,50 @@ def updateUserValue(userID,header,value = 0, reset = 0):
         try:
                 cursor.execute(query)
                 cnx.commit()
+                cursor.close()
+                cnx.close()
                 return 1
         except: 
+                cursor.close()
+                cnx.close()
                 return -1
 
 
 #TIP: The headers for each column in the dataframe is TOTAL, STREAK, and ACTIVEFLAG 
 def getUserValue(userID,header):
-        #userIndex = locateUser(dataframe,userID)
-        #row = dataframe.iloc[userIndex]
-        #value = row[header]
-        #print(header)
+
+        cnx = mysql.connector.connect(**config)
+        cursor = cnx.cursor()
         query = ("SELECT {0} FROM leaderboard_user WHERE id = %s".format(header))
         #print(query)
         data = (userID,)
         cursor.execute(query,data)
         try:
                 result = list(cursor.fetchone()) #All rows need to be fetched in order for connection to do new query. userID is PK -> should return only one.
+                cursor.close()
+                cnx.close()
+                return result[0]
         except:
+                cursor.close()
+                cnx.close()
                 return -1
         
-        return result[0]
+        
 
-def saveTable(dataframe,filename):
-        dataframe.to_csv(filename)
-        print('File Updated!')
+#def saveTable(dataframe,filename):
+#        dataframe.to_csv(filename)
+#        print('File Updated!')
 
 #pass guild parameter in rewrite
-def generateLeaderBoard(dataframe):
-        #frame = loadTable()
-        plt.figure()
-        dataframe.plot.barh(y = 'TOTAL')
-        plt.savefig("output.png")
-        filename = "output.png"
-        return filename
+#def generateLeaderBoard(dataframe):
+#        #frame = loadTable()
+#        plt.figure()
+#        dataframe.plot.barh(y = 'TOTAL')
+#        plt.savefig("output.png")
+#        filename = "output.png"
+#        return filename
 
-#https://github.com/Imgur/imgurpython
+#Imgur API Github Repository: https://github.com/Imgur/imgurpython
 from imgurpython import ImgurClient
 def uploadImage(filename):
 
@@ -161,4 +191,4 @@ if __name__ == "__main__":
     #addUser(898989,"addUserTest","testAddy")
     print(getUserValue('355178090231758850','total'))
     print(getUserRow(355178090231758850))
-    result = getUserRow(355178090231758850)
+    #result = getUserRow(355178090231758850)

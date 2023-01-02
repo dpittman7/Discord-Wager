@@ -1,5 +1,4 @@
-# https://cryptomarketpool.com/how-to-listen-for-ethereum-events-using-web3-in-python/
-# import the following dependencies
+#Ethereum Event Listener Tutorial: https://cryptomarketpool.com/how-to-listen-for-ethereum-events-using-web3-in-python/
 import json
 from queue import Empty
 from web3 import Web3
@@ -22,7 +21,6 @@ from web3 import Web3
 with open('transaction.sol', 'r') as file:
     simple_storage_file = file.read()
 
-# We add these two lines that we forgot from the video!
 print("Installing...")
 install_solc("0.8.16")
 

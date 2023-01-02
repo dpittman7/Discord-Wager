@@ -190,27 +190,33 @@ def setRank(ethAddy,elo):
     return tx_receipt
 
 def addUser(ethAddy):
-    print(nonce)
-    transaction = wager.functions.addUser(ethAddy).buildTransaction(
-        {
-            "chainId": chain_id,
-            "gasPrice": web3.eth.gas_price,
-            "from": my_address,
-            "nonce": web3.eth.getTransactionCount(my_address)
-        }
-    )
-    print(transaction)
-    signed_greeting_txn = web3.eth.account.sign_transaction(
-        transaction, private_key=PRIVATE_KEY
-    )
-    print(signed_greeting_txn)
-    tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
-    print(tx_greeting_hash)
-    print("Updating stored Value...")
 
-    tx_receipt = web3.eth.wait_for_transaction_receipt(tx_greeting_hash, timeout=120)
-    print("value updated!")
-    return tx_receipt
+    try:
+        transaction = wager.functions.addUser(ethAddy).buildTransaction(
+            {
+                "chainId": chain_id,
+                "gasPrice": web3.eth.gas_price,
+                "from": my_address,
+                "nonce": web3.eth.getTransactionCount(my_address)
+            }
+        )
+        print(transaction)
+        signed_greeting_txn = web3.eth.account.sign_transaction(
+            transaction, private_key=PRIVATE_KEY
+        )
+        print(signed_greeting_txn)
+        tx_greeting_hash = web3.eth.send_raw_transaction(signed_greeting_txn.rawTransaction)
+        print(tx_greeting_hash)
+        print("Updating stored Value...")
+
+        tx_receipt = web3.eth.wait_for_transaction_receipt(tx_greeting_hash, timeout=120)
+        print("value updated!")
+        error = False
+
+    except Exception as err:
+        error = "{}: Are you already registered? Call the function isUser() at Etherscan.".format(str(err))
+    
+    return error
 
 def initializeWithdraw(ethAddy, withdrawAmount):
     currentBalance = getBalance(ethAddy)
@@ -260,39 +266,9 @@ async def pullWatcher():
 #Used for testing local functions
 if __name__ == "__main__":
     print(wager.all_functions())
-    #addUser('0x7F1412c950807f4b964e9985868D57bD59DE9290')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    print(addUser('0xEf5260404B9fC9E9F0E2c951DbC60F95d724C34F'))
 
 ## ------------------------ LEGACY --------------------------------------
-
 def getETHPrice():
     cg = CoinGeckoAPI()
     ether_price = cg.get_price(ids='ethereum', vs_currencies='usd')
