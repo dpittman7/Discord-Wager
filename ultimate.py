@@ -600,21 +600,23 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
        datadriver.getUserValue(initiator.id,'IN_CHALLENGE')):
         print(datadriver.getUserRow(opponent.id))
         print(datadriver.getUserRow(initiator.id))
-        await interaction.response.send_message(content="complete current challenge")
+        await interaction.followup.send(content="complete current challenge")
         return
     
 
     if(wager):
         value = await selectWager(interaction,gamelist, initiatorData, oppositionData)
         if not await eligible(gamelist, value):
-            await interaction.response.send_message(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
+            await interaction.followup.send(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
             await asyncio.sleep(5)
             status_state[0] = -1
+    else:
+        message = await interaction.followup.send("Challenge initiated")
     
     toggleInChallenge(initiator.id,1)
     toggleInChallenge(opponent.id,1)
     
-    message = await interaction.channel.send("Challenge initiated")
+    
     print(0)
     #initiate challenge
     
@@ -625,12 +627,13 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
     while (status_state[0] == 3 or status_state[0] == 4):
         if status_state[0] == 3: await inprogress(client,gamelist, status_state, wager, value,activeEmbed)
         if status_state[0] == 4: await postresult(client,gamelist, status_state, date, wager, value)
-        await interaction.response.send_message(content="Challenge Concluded")
+        await message.edit(content="Challenge complete, gg.")
 
 
     if status_state[0] == -1 :
-        termination_message = await interaction.response.send_message(content="Challenge Terminated")
-        await termination_message.delete(delay=3)
+        await message.edit(content="Challenge Terminated")
+        await message.delete(delay=5.0)
+        
 
 
 #####################################################################
