@@ -407,7 +407,7 @@ async def getbalance(interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_message('User is not currently registered in contract.')   
 
 #####################################################################
-# Function: initialieuser
+# Function: initializeuser
 # Parameters: interaction -> SLASH COMMAND
 #             ethaddress -> ethereum address to be added to contract.
 #             profilepic -> to be downloaded to server, uploaded to imgur, and link stored.
@@ -484,7 +484,7 @@ async def eligible(gamelist,wagerValue):
     return eligible
 
 
-async def selectWager(interaction,gamelist, initiatorData, opponentData):
+async def selectWager(message,gamelist, initiatorData, opponentData):
     
 
     r = requests.get('https://api.etherscan.io/api?module=stats&action=ethprice&apikey={}'.format(ETHERSCAN_TOKEN)) #Etherscan API
@@ -497,7 +497,7 @@ async def selectWager(interaction,gamelist, initiatorData, opponentData):
     e.add_field(name='{} Selection'.format(initiatorData[0]), value='X', inline = False)
     e.add_field(name='{} Selection'.format(opponentData[0]), value='X', inline = False)
     e.set_footer(text='React to choose your selection', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
-    activeEmbed = await interaction.edit_original_response(embed=e)
+    activeEmbed = await message.edit(embed=e)
 
     await activeEmbed.add_reaction(str('1️⃣')) #unicode for 100 points
     await activeEmbed.add_reaction(str('3️⃣')) #unicode for cross mark
@@ -582,10 +582,11 @@ async def selectWager(interaction,gamelist, initiatorData, opponentData):
 
 @client.tree.command()
 async def challenge(interaction: discord.Interaction, opponent: discord.Member, wager: bool):
+    
 
     # dataframe = datadriver.loadTable(FILENAME)
     initiator = interaction.user
-    await interaction.response.send_message(f'.')
+    await interaction.response.defer()
     
     #Declarations
     gamelist = [] #gamelist[0] - initiatorID , gamelist[1] = opponentID
@@ -599,41 +600,43 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
        datadriver.getUserValue(initiator.id,'IN_CHALLENGE')):
         print(datadriver.getUserRow(opponent.id))
         print(datadriver.getUserRow(initiator.id))
-        await interaction.edit_original_response(content="complete current challenge")
+        await interaction.response.send_message(content="complete current challenge")
         return
     
-    toggleInChallenge(initiator.id,1)
-    toggleInChallenge(opponent.id,1)
 
     if(wager):
         value = await selectWager(interaction,gamelist, initiatorData, oppositionData)
         if not await eligible(gamelist, value):
-            await interaction.edit_original_response(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
+            await interaction.response.send_message(content="A user is unelgible for wager matches, ensure all parties meet the requirements defined in #how-to-use")
             await asyncio.sleep(5)
-            status_state[0] = await terminate(gamelist)
-            
+            status_state[0] = -1
     
+    toggleInChallenge(initiator.id,1)
+    toggleInChallenge(opponent.id,1)
+    
+    message = await interaction.channel.send("Challenge initiated")
     print(0)
     #initiate challenge
     
     #print(gamelist[1])
-    if status_state[0] == 0:  status_state, activeEmbed = await confirm(client, interaction, gamelist, status_state, reaction, wager, value)
+    if status_state[0] == 0:  status_state, activeEmbed = await confirm(client, message, gamelist, status_state, reaction, wager, value)
     print(status_state[0])
-    if status_state[0] == 2: await gamecount(client, interaction, status_state, gamelist, activeEmbed)
+    if status_state[0] == 2: await gamecount(client, status_state, gamelist, activeEmbed)
     while (status_state[0] == 3 or status_state[0] == 4):
-        if status_state[0] == 3: await inprogress(client,interaction,gamelist, status_state, wager, value,activeEmbed)
-        if status_state[0] == 4: await postresult(client,interaction,gamelist, status_state, date, wager, value)
+        if status_state[0] == 3: await inprogress(client,gamelist, status_state, wager, value,activeEmbed)
+        if status_state[0] == 4: await postresult(client,gamelist, status_state, date, wager, value)
+        await interaction.response.send_message(content="Challenge Concluded")
 
 
     if status_state[0] == -1 :
-        termination_message = await interaction.edit_original_response(content="Challenge Terminated")
+        termination_message = await interaction.response.send_message(content="Challenge Terminated")
         await termination_message.delete(delay=3)
 
 
 #####################################################################
-# Function: confirm(client, interaction, gamelist, status_state, reaction, wager, value)
+# Function: confirm(client, message, gamelist, status_state, reaction, wager, value)
 # Parameters: client ->
-#             interaction -> 
+#             message -> 
 #             gamelist -> 
 #             status_state
 #             reaction ->
@@ -647,7 +650,7 @@ async def challenge(interaction: discord.Interaction, opponent: discord.Member, 
 # Notes: 
 #####################################################################
     
-async def confirm(client, interaction, gamelist, status_state, reaction, wager = 0, value = 0):
+async def confirm(client, message, gamelist, status_state, reaction, wager = 0, value = 0):
     #confirm challenge
     gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
     print('gamelist {}'.format(*gamelist))
@@ -670,7 +673,7 @@ async def confirm(client, interaction, gamelist, status_state, reaction, wager =
     e.set_footer(text='The Messenger Brings News', icon_url='https://lastfm.freetls.fastly.net/i/u/770x0/73ada0c9f3d8cfe35e64a37502c369a3.jpg#73ada0c9f3d8cfe35e64a37502c369a3')
 
     
-    challengeEmbed = await interaction.edit_original_response(embed=e)
+    challengeEmbed = await message.edit(embed=e)
     await challengeEmbed.add_reaction(str('✅')) #unicode for 100 points
     await challengeEmbed.add_reaction(str('⛔')) #unicode for cross mark
     while status_state[0] == 1:
@@ -729,7 +732,7 @@ async def confirm(client, interaction, gamelist, status_state, reaction, wager =
 # Notes: 
 #####################################################################
 
-async def gamecount(client, interaction, status_state, gamelist, activeEmbed): #strip gamecount.
+async def gamecount(client, status_state, gamelist, activeEmbed): #strip gamecount.
     #state gamecount
     print(5)
     #print(status_state[0])
@@ -859,7 +862,7 @@ async def gamecount(client, interaction, status_state, gamelist, activeEmbed): #
 # Notes: 
 #####################################################################
 
-async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 0, activeEmbed=discord.message):
+async def inprogress(client,gamelist,status_state,wager = 0 , value = 0, activeEmbed=discord.message):
     gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
     initiator_ID = gamelist[0]
     opposition_ID = gamelist[1]
@@ -940,7 +943,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
                         print("initiator confirming win")
                         e.set_field_at(index=2,name='{}'.format(oppositionStats[0]),value="win claimed.")
                         await activeEmbed.edit(embed=e)
-                        status_state[3] += 1
+                        status_state[4] += 1
                         await updaterecord(initiator_ID,opposition_ID)
                         game_state = [0,0]
                         await activeEmbed.clear_reaction(str('👍')) #unicode for 100 points
@@ -967,7 +970,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
                         print("opposition confirming win")
                         e.set_field_at(index=1,name='{}'.format(oppositionStats[0]),value="win claimed.")
                         await activeEmbed.edit(embed=e)
-                        status_state[4] += 1
+                        status_state[3] += 1
                         await updaterecord(initiator_ID,opposition_ID)
                         await activeEmbed.clear_reaction(str('👍'))
                         game_state = [0,0]
@@ -986,7 +989,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
         
             if status_state[3] == wontheSet or status_state[4] == wontheSet:
                 concluded = 1
-                await message.channel.send('Game match reached! Winner is decided')
+                await activeEmbed.channel.send('Game match reached! Winner is decided')
            
             if status_state[3] == wontheSet:
                 await updaterecord(initiator_ID,opposition_ID, wager, value) #When status state 3 == status state 2, initiator has won.
@@ -994,7 +997,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
                 await updaterecord(opposition_ID,initiator_ID, wager, value)
     
     if abort:
-        status_state[0] = await terminate(gamelist,message)
+        status_state[0] = await terminate(gamelist)
     else:
         status_state[0] = 4
 
@@ -1010,7 +1013,7 @@ async def inprogress(client, message, gamelist,status_state,wager = 0 , value = 
 # Notes: 
 #####################################################################
 
-async def postresult(client,interaction,gamelist,status_state,date, wager = 0, value = 0):
+async def postresult(client,gamelist,status_state,date, wager = 0, value = 0):
     print('posting results in message channel')
 
     gamelist, initiatorStats, oppositionStats = await initialize(gamelist)
